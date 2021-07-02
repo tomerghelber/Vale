@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="77559eb4-8a63-469e-8285-d09a3da1792c" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/libraries/sbt__org_scala_lang_scala_library_2_12_6_jar.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules/Valestrom-build.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules/Valestrom.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/sbt.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/scala_compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/Vale.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/codeStyles/Project.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/codeStyles/codeStyleConfig.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/libraries/Driver20200628.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/artifacts/CompileServer_jar.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/artifacts/Valestrom_jar.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/libraries/com_google_cloud_functions_functions_framework_api_1_0_1.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/libraries/commons_lang_commons_lang_2_6.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/libraries/lift_json_2_12_3_4_3.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/libraries/org_scala_lang_modules_scala_parser_combinators_2_12_1_1_1.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/libraries/org_scalatest_scalatest_2_12_3_0_8.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/scala_settings.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/uiDesigner.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.sbt" beforeDir="false" afterPath="$PROJECT_DIR$/build.sbt" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CodeStyleSettingsInfer">
+    <option name="done" value="true" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectCodeStyleSettingsMigration">
+    <option name="version" value="1" />
+  </component>
+  <component name="ProjectId" id="1ulv97sieKDo4TOhyhuYVEqLmEh" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="aspect.path.notification.shown" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/build.sbt" />
+    <property name="project.structure.last.edited" value="Modules" />
+    <property name="project.structure.proportion" value="0.0" />
+    <property name="project.structure.side.proportion" value="0.0" />
+  </component>
+  <component name="RunManager" selected="ScalaTest.ScalaTests in 'test'">
+    <configuration default="true" type="ArquillianJUnit" factoryName="" nameIsGenerated="true">
+      <option name="arquillianRunConfiguration">
+        <value>
+          <option name="containerStateName" value="" />
+        </value>
+      </option>
+      <option name="TEST_OBJECT" value="class" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ArrayTests.Returning static array from function and dotting it" type="ScalaTestRunConfiguration" factoryName="ScalaTest" temporary="true" nameIsGenerated="true" show_console_on_std_err="false" show_console_on_std_out="false">
+      <module name="Valestrom" />
+      <option name="allowRunningInParallel" value="false" />
+      <option name="projectPathOnTarget" />
+      <option name="selectedOptions">
+        <list />
+      </option>
+      <option name="testKind" value="Test name" />
+      <option name="testClassPath" value="net.verdagon.vale.ArrayTests" />
+      <option name="testName" value="Returning static array from function and dotting it" />
+      <option name="workingDirectory" value="$PROJECT_DIR$" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="InferTemplateTests.Test inferring a borrowed argument" type="ScalaTestRunConfiguration" factoryName="ScalaTest" temporary="true" nameIsGenerated="true" show_console_on_std_err="false" show_console_on_std_out="false">
+      <module name="Valestrom" />
+      <option name="allowRunningInParallel" value="false" />
+      <option name="projectPathOnTarget" />
+      <option name="selectedOptions">
+        <list />
+      </option>
+      <option name="testKind" value="Test name" />
+      <option name="testClassPath" value="net.verdagon.vale.InferTemplateTests" />
+      <option name="testName" value="Test inferring a borrowed argument" />
+      <option name="workingDirectory" value="$PROJECT_DIR$" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="IntegrationTestsA.Test returning a local mutable var" type="ScalaTestRunConfiguration" factoryName="ScalaTest" temporary="true" nameIsGenerated="true" show_console_on_std_err="false" show_console_on_std_out="false">
+      <module name="Valestrom" />
+      <option name="allowRunningInParallel" value="false" />
+      <option name="projectPathOnTarget" />
+      <option name="selectedOptions">
+        <list />
+      </option>
+      <option name="testKind" value="Test name" />
+      <option name="testClassPath" value="net.verdagon.vale.IntegrationTestsA" />
+      <option name="testName" value="Test returning a local mutable var" />
+      <option name="workingDirectory" value="$PROJECT_DIR$" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ScalaTests in 'test'" type="ScalaTestRunConfiguration" factoryName="ScalaTest" temporary="true" nameIsGenerated="true" show_console_on_std_err="false" show_console_on_std_out="false">
+      <module name="Valestrom" />
+      <option name="allowRunningInParallel" value="false" />
+      <option name="projectPathOnTarget" />
+      <option name="selectedOptions">
+        <list />
+      </option>
+      <option name="testKind" value="All in package" />
+      <option name="classBuf">
+        <list>
+          <option value="net.verdagon.vale.ArrayTests" />
+          <option value="net.verdagon.vale.BlockTests" />
+          <option value="net.verdagon.vale.FloatTests" />
+          <option value="net.verdagon.vale.PrintTests" />
+          <option value="net.verdagon.vale.TupleTests" />
+          <option value="net.verdagon.vale.WhileTests" />
+          <option value="net.verdagon.vale.HammerTests" />
+          <option value="net.verdagon.vale.HashMapTest" />
+          <option value="net.verdagon.vale.ImportTests" />
+          <option value="net.verdagon.vale.StringTests" />
+          <option value="net.verdagon.vale.StructTests" />
+          <option value="net.verdagon.vale.ClosureTests" />
+          <option value="net.verdagon.vale.PatternTests" />
+          <option value="net.verdagon.vale.VirtualTests" />
+          <option value="net.verdagon.vale.ArrayListTest" />
+          <option value="net.verdagon.vale.OwnershipTests" />
+          <option value="net.verdagon.vale.ArithmeticTestsA" />
+          <option value="net.verdagon.vale.ConjunctionTests" />
+          <option value="net.verdagon.vale.IntegrationTestsA" />
+          <option value="net.verdagon.vale.PureFunctionTests" />
+          <option value="net.verdagon.vale.InferTemplateTests" />
+          <option value="net.verdagon.vale.IfTests" />
+          <option value="net.verdagon.vale.OptTests" />
+          <option value="net.verdagon.vale.PackTests" />
+          <option value="net.verdagon.vale.WeakTests" />
+          <option value="net.verdagon.vale.hammer.HammerTest" />
+          <option value="net.verdagon.vale.astronomer.ErrorTests" />
+          <option value="net.verdagon.vale.astronomer.RuleTyperTests" />
+          <option value="net.verdagon.vale.parser.ExpressionTests" />
+          <option value="net.verdagon.vale.parser.ParseSamplesTests" />
+          <option value="net.verdagon.vale.parser.IfTests" />
+          <option value="net.verdagon.vale.parser.ImplTests" />
+          <option value="net.verdagon.vale.parser.LoadTests" />
+          <option value="net.verdagon.vale.parser.WhileTests" />
+          <option value="net.verdagon.vale.parser.StructTests" />
+          <option value="net.verdagon.vale.parser.TopLevelTests" />
+          <option value="net.verdagon.vale.parser.SignatureTests" />
+          <option value="net.verdagon.vale.parser.StatementTests" />
+          <option value="net.verdagon.vale.parser.functions.BiggerTests" />
+          <option value="net.verdagon.vale.parser.patterns.TypeTests" />
+          <option value="net.verdagon.vale.parser.patterns.PatternParserTests" />
+          <option value="net.verdagon.vale.parser.patterns.CaptureAndTypeTests" />
+          <option value="net.verdagon.vale.parser.patterns.DestructureParserTests" />
+          <option value="net.verdagon.vale.parser.patterns.TypeAndDestructureTests" />
+          <option value="net.verdagon.vale.parser.patterns.CaptureAndDestructureTests" />
+          <option value="net.verdagon.vale.parser.rules.RuleTests" />
+          <option value="net.verdagon.vale.parser.rules.KindRuleTests" />
+          <option value="net.verdagon.vale.parser.rules.CoordRuleTests" />
+          <option value="net.verdagon.vale.parser.rules.RulesEnumsTests" />
+          <option value="net.verdagon.vale.scout.ScoutTests" />
+          <option value="net.verdagon.vale.scout.RunePredictorTests" />
+          <option value="net.verdagon.vale.scout.ScoutVariableTests" />
+          <option value="net.verdagon.vale.scout.ScoutParametersTests" />
+          <option value="net.verdagon.vale.scout.ScoutErrorHumanizerTests" />
+          <option value="net.verdagon.vale.scout.rules.RuleScoutTests" />
+          <option value="net.verdagon.vale.templar.MutateTests" />
+          <option value="net.verdagon.vale.templar.TemplarTests" />
+          <option value="net.verdagon.vale.templar.VirtualTests" />
+          <option value="net.verdagon.vale.templar.PermissionTests" />
+          <option value="net.verdagon.vale.templar.infer.InfererTests" />
+          <option value="net.verdagon.vale.highlighter.SpannerTests" />
+          <option value="net.verdagon.vale.highlighter.HighlighterTests" />
+          <option value="net.verdagon.vale.vivem.VivemTests" />
+          <option value="net.verdagon.von.VonTest" />
+        </list>
+      </option>
+      <option name="workingDirectory" value="$PROJECT_DIR$" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="ScalaTest.ScalaTests in 'test'" />
+        <item itemvalue="ScalaTest.ArrayTests.Returning static array from function and dotting it" />
+        <item itemvalue="ScalaTest.InferTemplateTests.Test inferring a borrowed argument" />
+        <item itemvalue="ScalaTest.IntegrationTestsA.Test returning a local mutable var" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="77559eb4-8a63-469e-8285-d09a3da1792c" name="Default Changelist" comment="" />
+      <created>1625252843643</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1625252843643</updated>
+      <workItem from="1625252849416" duration="500000" />
+      <workItem from="1625253545603" duration="1985000" />
+      <workItem from="1625255751518" duration="82000" />
+      <workItem from="1625256260206" duration="690000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+</project>
