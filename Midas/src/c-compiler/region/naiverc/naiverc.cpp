@@ -22,25 +22,25 @@ NaiveRC::NaiveRC(GlobalState* globalState_, RegionId* regionId_) :
         globalState,
         makeAssistAndNaiveRCWeakableControlBlock(globalState),
         WrcWeaks::makeWeakRefHeaderStruct(globalState)),
-    referendStructs(
+    kindStructs(
         globalState,
-        [this](Referend* referend) -> IReferendStructsSource* {
-          if (globalState->getReferendWeakability(referend) == Weakability::NON_WEAKABLE) {
+        [this](Kind* kind) -> IKindStructsSource* {
+          if (globalState->getKindWeakability(kind) == Weakability::NON_WEAKABLE) {
             return &mutNonWeakableStructs;
           } else {
             return &mutWeakableStructs;
           }
         }),
     weakRefStructs(
-        [this](Referend* referend) -> IWeakRefStructsSource* {
-          if (globalState->getReferendWeakability(referend) == Weakability::NON_WEAKABLE) {
+        [this](Kind* kind) -> IWeakRefStructsSource* {
+          if (globalState->getKindWeakability(kind) == Weakability::NON_WEAKABLE) {
             assert(false);
           } else {
             return &mutWeakableStructs;
           }
         }),
     fatWeaks(globalState_, &weakRefStructs),
-    wrcWeaks(globalState_, &referendStructs, &weakRefStructs) {
+    wrcWeaks(globalState_, &kindStructs, &weakRefStructs) {
 }
 
 RegionId* NaiveRC::getRegionId() {
@@ -55,24 +55,24 @@ void NaiveRC::mainCleanup(FunctionState* functionState, LLVMBuilderRef builder) 
   wrcWeaks.mainCleanup(functionState, builder);
 }
 
-Ref NaiveRC::constructKnownSizeArray(
+Ref NaiveRC::constructStaticSizedArray(
     Ref regionInstanceRef,
     FunctionState *functionState,
     LLVMBuilderRef builder,
     Reference *referenceM,
-    KnownSizeArrayT *referendM) {
-  auto ksaDef = globalState->program->getKnownSizeArray(referendM->name);
+    StaticSizedArrayT *kindM) {
+  auto ssaDef = globalState->program->getStaticSizedArray(kindM);
   auto resultRef =
-      ::constructKnownSizeArray(
-          globalState, functionState, builder, referenceM, referendM, &referendStructs,
-          [this, functionState, referenceM, referendM](LLVMBuilderRef innerBuilder, ControlBlockPtrLE controlBlockPtrLE) {
+      ::constructStaticSizedArray(
+          globalState, functionState, builder, referenceM, kindM, &kindStructs,
+          [this, functionState, referenceM, kindM](LLVMBuilderRef innerBuilder, ControlBlockPtrLE controlBlockPtrLE) {
             fillControlBlock(
                 FL(),
                 functionState,
                 innerBuilder,
-                referenceM->referend,
+                referenceM->kind,
                 controlBlockPtrLE,
-                referendM->name->name);
+                kindM->name->name);
           });
   // We dont increment here, see SRCAO
   return resultRef;
@@ -95,14 +95,14 @@ Ref NaiveRC::allocate(
     LLVMBuilderRef builder,
     Reference* desiredReference,
     const std::vector<Ref>& memberRefs) {
-  auto structReferend = dynamic_cast<StructReferend*>(desiredReference->referend);
-  auto structM = globalState->program->getStruct(structReferend->fullName);
+  auto structKind = dynamic_cast<StructKind*>(desiredReference->kind);
+  auto structM = globalState->program->getStruct(structKind);
   auto resultRef =
       innerAllocate(
-          FL(), globalState, functionState, builder, desiredReference, &referendStructs, memberRefs, Weakability::WEAKABLE,
+          FL(), globalState, functionState, builder, desiredReference, &kindStructs, memberRefs, Weakability::WEAKABLE,
           [this, functionState, desiredReference, structM](LLVMBuilderRef innerBuilder, ControlBlockPtrLE controlBlockPtrLE) {
             fillControlBlock(
-                FL(), functionState, innerBuilder, desiredReference->referend,
+                FL(), functionState, innerBuilder, desiredReference->kind,
                 controlBlockPtrLE, structM->name->name);
           });
   return resultRef;
@@ -114,36 +114,36 @@ void NaiveRC::alias(
     LLVMBuilderRef builder,
     Reference* sourceRef,
     Ref expr) {
-  auto sourceRnd = sourceRef->referend;
+  auto sourceRnd = sourceRef->kind;
 
   if (dynamic_cast<Int *>(sourceRnd) ||
       dynamic_cast<Bool *>(sourceRnd) ||
       dynamic_cast<Float *>(sourceRnd)) {
     // Do nothing for these, they're always inlined and copied.
-  } else if (dynamic_cast<InterfaceReferend *>(sourceRnd) ||
-             dynamic_cast<StructReferend *>(sourceRnd) ||
-             dynamic_cast<KnownSizeArrayT *>(sourceRnd) ||
-             dynamic_cast<UnknownSizeArrayT *>(sourceRnd) ||
+  } else if (dynamic_cast<InterfaceKind *>(sourceRnd) ||
+             dynamic_cast<StructKind *>(sourceRnd) ||
+             dynamic_cast<StaticSizedArrayT *>(sourceRnd) ||
+             dynamic_cast<RuntimeSizedArrayT *>(sourceRnd) ||
              dynamic_cast<Str *>(sourceRnd)) {
     if (sourceRef->ownership == Ownership::OWN) {
       // This can happen if we just allocated something. It's RC is already zero, and we want to
       // bump it to 1 for the owning reference.
-      adjustStrongRc(from, globalState, functionState, &referendStructs, builder, expr, sourceRef, 1);
+      adjustStrongRc(from, globalState, functionState, &kindStructs, builder, expr, sourceRef, 1);
     } else if (sourceRef->ownership == Ownership::BORROW) {
-      adjustStrongRc(from, globalState, functionState, &referendStructs, builder, expr, sourceRef, 1);
+      adjustStrongRc(from, globalState, functionState, &kindStructs, builder, expr, sourceRef, 1);
     } else if (sourceRef->ownership == Ownership::WEAK) {
       aliasWeakRef(from, functionState, builder, sourceRef, expr);
     } else if (sourceRef->ownership == Ownership::SHARE) {
       if (sourceRef->location == Location::INLINE) {
         // Do nothing, we can just let inline structs disappear
       } else {
-        adjustStrongRc(from, globalState, functionState, &referendStructs, builder, expr, sourceRef, 1);
+        adjustStrongRc(from, globalState, functionState, &kindStructs, builder, expr, sourceRef, 1);
       }
     } else
       assert(false);
   } else {
     std::cerr << "Unimplemented type in acquireReference: "
-              << typeid(*sourceRef->referend).name() << std::endl;
+              << typeid(*sourceRef->kind).name() << std::endl;
     assert(false);
   }
 }
@@ -154,7 +154,7 @@ void NaiveRC::dealias(
     LLVMBuilderRef builder,
     Reference* sourceMT,
     Ref sourceRef) {
-  auto sourceRnd = sourceMT->referend;
+  auto sourceRnd = sourceMT->kind;
 
   if (sourceMT->ownership == Ownership::SHARE) {
     assert(false);
@@ -162,7 +162,7 @@ void NaiveRC::dealias(
     // We can't discard owns, they must be destructured.
     assert(false); // impl
   } else if (sourceMT->ownership == Ownership::BORROW) {
-    auto rcLE = adjustStrongRc(from, globalState, functionState, &referendStructs, builder, sourceRef, sourceMT, -1);
+    auto rcLE = adjustStrongRc(from, globalState, functionState, &kindStructs, builder, sourceRef, sourceMT, -1);
     buildIf(
         globalState, functionState, builder, isZeroLE(builder, rcLE),
         [this, functionState, sourceRef, sourceMT](LLVMBuilderRef thenBuilder) {
@@ -175,7 +175,7 @@ void NaiveRC::dealias(
 
 Ref NaiveRC::weakAlias(FunctionState* functionState, LLVMBuilderRef builder, Reference* sourceRefMT, Reference* targetRefMT, Ref sourceRef) {
   assert(sourceRefMT->ownership == Ownership::BORROW);
-  return regularWeakAlias(globalState, functionState, &referendStructs, &wrcWeaks, builder, sourceRefMT, targetRefMT, sourceRef);
+  return regularWeakAlias(globalState, functionState, &kindStructs, &wrcWeaks, builder, sourceRefMT, targetRefMT, sourceRef);
 }
 
 // Doesn't return a constraint ref, returns a raw ref to the wrapper struct.
@@ -197,7 +197,7 @@ WrapperPtrLE NaiveRC::lockWeakRef(
           weakRefStructs.makeWeakFatPtr(
               refM,
               checkValidReference(FL(), functionState, builder, refM, weakRefLE));
-      return referendStructs.makeWrapperPtr(
+      return kindStructs.makeWrapperPtr(
           FL(), functionState, builder, refM,
           wrcWeaks.lockWrciFatPtr(from, functionState, builder, refM, weakFatPtrLE));
     }
@@ -235,19 +235,16 @@ Ref NaiveRC::lockWeak(
 Ref NaiveRC::asSubtype(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    bool thenResultIsNever,
-    bool elseResultIsNever,
     Reference* resultOptTypeM,
-    Reference* constraintRefM,
     Reference* sourceInterfaceRefMT,
     Ref sourceInterfaceRef,
     bool sourceRefKnownLive,
-    Referend* targetReferend,
+    Kind* targetKind,
     std::function<Ref(LLVMBuilderRef, Ref)> buildThen,
     std::function<Ref(LLVMBuilderRef)> buildElse) {
-  return regularInnerAsSubtype(
-      globalState, functionState, builder, thenResultIsNever, elseResultIsNever, resultOptTypeM, constraintRefM,
-      sourceInterfaceRefMT, sourceInterfaceRef, sourceRefKnownLive, targetReferend, buildThen, buildElse);
+  return regularDowncast(
+      globalState, functionState, builder, &kindStructs, resultOptTypeM,
+      sourceInterfaceRefMT, sourceInterfaceRef, sourceRefKnownLive, targetKind, buildThen, buildElse);
 }
 
 LLVMTypeRef NaiveRC::translateType(Reference* referenceM) {
@@ -257,10 +254,10 @@ LLVMTypeRef NaiveRC::translateType(Reference* referenceM) {
     case Ownership::OWN:
     case Ownership::BORROW:
       assert(referenceM->location != Location::INLINE);
-      return translateReferenceSimple(globalState, &referendStructs, referenceM->referend);
+      return translateReferenceSimple(globalState, &kindStructs, referenceM->kind);
     case Ownership::WEAK:
       assert(referenceM->location != Location::INLINE);
-      return translateWeakReference(globalState, &weakRefStructs, referenceM->referend);
+      return translateWeakReference(globalState, &weakRefStructs, referenceM->kind);
     default:
       assert(false);
   }
@@ -270,50 +267,50 @@ Ref NaiveRC::upcastWeak(
     FunctionState* functionState,
     LLVMBuilderRef builder,
     WeakFatPtrLE sourceRefLE,
-    StructReferend* sourceStructReferendM,
+    StructKind* sourceStructKindM,
     Reference* sourceStructTypeM,
-    InterfaceReferend* targetInterfaceReferendM,
+    InterfaceKind* targetInterfaceKindM,
     Reference* targetInterfaceTypeM) {
   auto resultWeakInterfaceFatPtr =
       wrcWeaks.weakStructPtrToWrciWeakInterfacePtr(
-          globalState, functionState, builder, sourceRefLE, sourceStructReferendM,
-          sourceStructTypeM, targetInterfaceReferendM, targetInterfaceTypeM);
+          globalState, functionState, builder, sourceRefLE, sourceStructKindM,
+          sourceStructTypeM, targetInterfaceKindM, targetInterfaceTypeM);
   return wrap(this, targetInterfaceTypeM, resultWeakInterfaceFatPtr);
 }
 
-void NaiveRC::declareKnownSizeArray(
-    KnownSizeArrayDefinitionT* knownSizeArrayMT) {
-  globalState->regionIdByReferend.emplace(knownSizeArrayMT->referend, getRegionId());
+void NaiveRC::declareStaticSizedArray(
+    StaticSizedArrayDefinitionT* staticSizedArrayMT) {
+  globalState->regionIdByKind.emplace(staticSizedArrayMT->kind, getRegionId());
 
-  referendStructs.declareKnownSizeArray(knownSizeArrayMT);
+  kindStructs.declareStaticSizedArray(staticSizedArrayMT);
 }
 
-void NaiveRC::declareUnknownSizeArray(
-    UnknownSizeArrayDefinitionT* unknownSizeArrayMT) {
-  globalState->regionIdByReferend.emplace(unknownSizeArrayMT->referend, getRegionId());
+void NaiveRC::declareRuntimeSizedArray(
+    RuntimeSizedArrayDefinitionT* runtimeSizedArrayMT) {
+  globalState->regionIdByKind.emplace(runtimeSizedArrayMT->kind, getRegionId());
 
-  referendStructs.declareUnknownSizeArray(unknownSizeArrayMT);
+  kindStructs.declareRuntimeSizedArray(runtimeSizedArrayMT);
 }
 
-void NaiveRC::defineUnknownSizeArray(
-    UnknownSizeArrayDefinitionT* unknownSizeArrayMT) {
+void NaiveRC::defineRuntimeSizedArray(
+    RuntimeSizedArrayDefinitionT* runtimeSizedArrayMT) {
   auto elementLT =
-      globalState->getRegion(unknownSizeArrayMT->rawArray->elementType)
-          ->translateType(unknownSizeArrayMT->rawArray->elementType);
-  referendStructs.defineUnknownSizeArray(unknownSizeArrayMT, elementLT);
+      globalState->getRegion(runtimeSizedArrayMT->rawArray->elementType)
+          ->translateType(runtimeSizedArrayMT->rawArray->elementType);
+  kindStructs.defineRuntimeSizedArray(runtimeSizedArrayMT, elementLT);
 }
 
-void NaiveRC::defineKnownSizeArray(
-    KnownSizeArrayDefinitionT* knownSizeArrayMT) {
+void NaiveRC::defineStaticSizedArray(
+    StaticSizedArrayDefinitionT* staticSizedArrayMT) {
   auto elementLT =
-      globalState->getRegion(knownSizeArrayMT->rawArray->elementType)
-          ->translateType(knownSizeArrayMT->rawArray->elementType);
-  referendStructs.defineKnownSizeArray(knownSizeArrayMT, elementLT);
+      globalState->getRegion(staticSizedArrayMT->rawArray->elementType)
+          ->translateType(staticSizedArrayMT->rawArray->elementType);
+  kindStructs.defineStaticSizedArray(staticSizedArrayMT, elementLT);
 }
 void NaiveRC::declareStruct(
     StructDefinition* structM) {
-  globalState->regionIdByReferend.emplace(structM->referend, getRegionId());
-  referendStructs.declareStruct(structM->referend);
+  globalState->regionIdByKind.emplace(structM->kind, getRegionId());
+  kindStructs.declareStruct(structM->kind);
 }
 
 void NaiveRC::defineStruct(StructDefinition* structM) {
@@ -323,27 +320,27 @@ void NaiveRC::defineStruct(StructDefinition* structM) {
         globalState->getRegion(structM->members[i]->type)
             ->translateType(structM->members[i]->type));
   }
-  referendStructs.defineStruct(structM->referend, innerStructMemberTypesL);
+  kindStructs.defineStruct(structM->kind, innerStructMemberTypesL);
 }
 
 void NaiveRC::declareEdge(Edge* edge) {
-  referendStructs.declareEdge(edge);
+  kindStructs.declareEdge(edge);
 }
 
 void NaiveRC::defineEdge(Edge* edge) {
   auto interfaceFunctionsLT = globalState->getInterfaceFunctionTypes(edge->interfaceName);
   auto edgeFunctionsL = globalState->getEdgeFunctions(edge);
-  referendStructs.defineEdge(edge, interfaceFunctionsLT, edgeFunctionsL);
+  kindStructs.defineEdge(edge, interfaceFunctionsLT, edgeFunctionsL);
 }
 
 void NaiveRC::declareInterface(InterfaceDefinition* interfaceM) {
-  globalState->regionIdByReferend.emplace(interfaceM->referend, getRegionId());
-  referendStructs.declareInterface(interfaceM);
+  globalState->regionIdByKind.emplace(interfaceM->kind, getRegionId());
+  kindStructs.declareInterface(interfaceM);
 }
 
 void NaiveRC::defineInterface(InterfaceDefinition* interfaceM) {
-  auto interfaceMethodTypesL = globalState->getInterfaceFunctionTypes(interfaceM->referend);
-  referendStructs.defineInterface(interfaceM, interfaceMethodTypesL);
+  auto interfaceMethodTypesL = globalState->getInterfaceFunctionTypes(interfaceM->kind);
+  kindStructs.defineInterface(interfaceM, interfaceMethodTypesL);
 }
 
 void NaiveRC::discardOwningRef(
@@ -356,7 +353,7 @@ void NaiveRC::discardOwningRef(
   auto rcLE =
       adjustStrongRc(
           AFL("Destroy decrementing the owning ref"),
-          globalState, functionState, &referendStructs, builder, sourceRef, sourceMT, -1);
+          globalState, functionState, &kindStructs, builder, sourceRef, sourceMT, -1);
   buildIf(
       globalState, functionState, builder, isZeroLE(builder, rcLE),
       [this, functionState, blockState, sourceRef, sourceMT](LLVMBuilderRef thenBuilder) {
@@ -370,13 +367,13 @@ void NaiveRC::noteWeakableDestroyed(
     Reference* refM,
     ControlBlockPtrLE controlBlockPtrLE) {
   // Dont need to assert that the strong RC is zero, thats the only way we'd get here.
-  if (auto structReferendM = dynamic_cast<StructReferend*>(refM->referend)) {
-    auto structM = globalState->program->getStruct(structReferendM->fullName);
+  if (auto structKindM = dynamic_cast<StructKind*>(refM->kind)) {
+    auto structM = globalState->program->getStruct(structKindM);
     if (structM->weakability == Weakability::WEAKABLE) {
       wrcWeaks.innerNoteWeakableDestroyed(functionState, builder, refM, controlBlockPtrLE);
     }
-  } else if (auto interfaceReferendM = dynamic_cast<InterfaceReferend*>(refM->referend)) {
-    auto interfaceM = globalState->program->getInterface(interfaceReferendM->fullName);
+  } else if (auto interfaceKindM = dynamic_cast<InterfaceKind*>(refM->kind)) {
+    auto interfaceM = globalState->program->getInterface(interfaceKindM);
     if (interfaceM->weakability == Weakability::WEAKABLE) {
       wrcWeaks.innerNoteWeakableDestroyed(functionState, builder, refM, controlBlockPtrLE);
     }
@@ -403,7 +400,7 @@ void NaiveRC::storeMember(
           globalState->getRegion(newMemberRefMT)->checkValidReference(
               FL(), functionState, builder, newMemberRefMT, newMemberRef);
       storeMemberStrong(
-          globalState, functionState, builder, &referendStructs, structRefMT, structRef,
+          globalState, functionState, builder, &kindStructs, structRefMT, structRef,
           structKnownLive, memberIndex, memberName, newMemberLE);
       break;
     }
@@ -412,7 +409,7 @@ void NaiveRC::storeMember(
           globalState->getRegion(newMemberRefMT)->checkValidReference(
               FL(), functionState, builder, newMemberRefMT, newMemberRef);
       storeMemberWeak(
-          globalState, functionState, builder, &referendStructs, structRefMT, structRef,
+          globalState, functionState, builder, &kindStructs, structRefMT, structRef,
           structKnownLive, memberIndex, memberName, newMemberLE);
       break;
     }
@@ -433,11 +430,11 @@ std::tuple<LLVMValueRef, LLVMValueRef> NaiveRC::explodeInterfaceRef(
     case Ownership::BORROW:
     case Ownership::SHARE: {
       return explodeStrongInterfaceRef(
-          globalState, functionState, builder, &referendStructs, virtualParamMT, virtualArgRef);
+          globalState, functionState, builder, &kindStructs, virtualParamMT, virtualArgRef);
     }
     case Ownership::WEAK: {
       return explodeWeakInterfaceRef(
-          globalState, functionState, builder, &referendStructs, &fatWeaks, &weakRefStructs,
+          globalState, functionState, builder, &kindStructs, &fatWeaks, &weakRefStructs,
           virtualParamMT, virtualArgRef,
           [this, functionState, builder, virtualParamMT](WeakFatPtrLE weakFatPtrLE) {
             return wrcWeaks.weakInterfaceRefToWeakStructRef(
@@ -449,13 +446,13 @@ std::tuple<LLVMValueRef, LLVMValueRef> NaiveRC::explodeInterfaceRef(
   }
 }
 
-Ref NaiveRC::getUnknownSizeArrayLength(
+Ref NaiveRC::getRuntimeSizedArrayLength(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaRefMT,
+    Reference* rsaRefMT,
     Ref arrayRef,
     bool arrayKnownLive) {
-  return getUnknownSizeArrayLengthStrong(globalState, functionState, builder, &referendStructs, usaRefMT, arrayRef);
+  return getRuntimeSizedArrayLengthStrong(globalState, functionState, builder, &kindStructs, rsaRefMT, arrayRef);
 }
 
 LLVMValueRef NaiveRC::checkValidReference(
@@ -473,13 +470,13 @@ LLVMValueRef NaiveRC::checkValidReference(
 
   if (globalState->opt->census) {
     if (refM->ownership == Ownership::OWN) {
-      regularCheckValidReference(checkerAFL, globalState, functionState, builder, &referendStructs, refM, refLE);
+      regularCheckValidReference(checkerAFL, globalState, functionState, builder, &kindStructs, refM, refLE);
     } else if (refM->ownership == Ownership::SHARE) {
       assert(false);
     } else {
       if (refM->ownership == Ownership::BORROW) {
         regularCheckValidReference(checkerAFL, globalState, functionState, builder,
-                                   &referendStructs, refM, refLE);
+                                   &kindStructs, refM, refLE);
       } else if (refM->ownership == Ownership::WEAK) {
         wrcWeaks.buildCheckWeakRef(checkerAFL, functionState, builder, refM, ref);
       } else
@@ -546,7 +543,7 @@ Ref NaiveRC::upgradeLoadResultToRefWithTargetOwnership(
       return sourceRef;
     } else if (targetOwnership == Ownership::WEAK) {
       // Making a weak ref from a constraint ref local.
-      assert(dynamic_cast<StructReferend*>(sourceType->referend) || dynamic_cast<InterfaceReferend*>(sourceType->referend));
+      assert(dynamic_cast<StructKind*>(sourceType->kind) || dynamic_cast<InterfaceKind*>(sourceType->kind));
       return wrcWeaks.assembleWeakRef(functionState, builder, sourceType, targetType, sourceRef);
     } else {
       assert(false);
@@ -584,8 +581,8 @@ LLVMValueRef NaiveRC::getCensusObjectId(
     Reference* refM,
     Ref ref) {
   auto controlBlockPtrLE =
-      referendStructs.getControlBlockPtr(checkerAFL, functionState, builder, ref, refM);
-  return referendStructs.getObjIdFromControlBlockPtr(builder, refM->referend, controlBlockPtrLE);
+      kindStructs.getControlBlockPtr(checkerAFL, functionState, builder, ref, refM);
+  return kindStructs.getObjIdFromControlBlockPtr(builder, refM->kind, controlBlockPtrLE);
 }
 
 Ref NaiveRC::getIsAliveFromWeakRef(
@@ -602,59 +599,59 @@ void NaiveRC::fillControlBlock(
     AreaAndFileAndLine from,
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Referend* referendM,
+    Kind* kindM,
     ControlBlockPtrLE controlBlockPtrLE,
     const std::string& typeName) {
   regularFillControlBlock(
-      from, globalState, functionState, &referendStructs, builder, referendM, controlBlockPtrLE,
+      from, globalState, functionState, &kindStructs, builder, kindM, controlBlockPtrLE,
       typeName, &wrcWeaks);
 }
 
-LoadResult NaiveRC::loadElementFromKSA(
+LoadResult NaiveRC::loadElementFromSSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* ksaRefMT,
-    KnownSizeArrayT* ksaMT,
+    Reference* ssaRefMT,
+    StaticSizedArrayT* ssaMT,
     Ref arrayRef,
     bool arrayKnownLive,
     Ref indexRef) {
-  auto ksaDef = globalState->program->getKnownSizeArray(ksaMT->name);
-  return regularloadElementFromKSA(
-      globalState, functionState, builder, ksaRefMT, ksaMT, ksaDef->rawArray->elementType, ksaDef->size, ksaDef->rawArray->mutability, arrayRef, arrayKnownLive, indexRef, &referendStructs);
+  auto ssaDef = globalState->program->getStaticSizedArray(ssaMT);
+  return regularloadElementFromSSA(
+      globalState, functionState, builder, ssaRefMT, ssaMT, ssaDef->rawArray->elementType, ssaDef->size, ssaDef->rawArray->mutability, arrayRef, arrayKnownLive, indexRef, &kindStructs);
 }
 
-LoadResult NaiveRC::loadElementFromUSA(
+LoadResult NaiveRC::loadElementFromRSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaRefMT,
-    UnknownSizeArrayT* usaMT,
+    Reference* rsaRefMT,
+    RuntimeSizedArrayT* rsaMT,
     Ref arrayRef,
     bool arrayKnownLive,
     Ref indexRef) {
-  auto usaDef = globalState->program->getUnknownSizeArray(usaMT->name);
-  return regularLoadElementFromUSAWithoutUpgrade(
-      globalState, functionState, builder, &referendStructs, usaRefMT, usaMT, usaDef->rawArray->mutability, usaDef->rawArray->elementType, arrayRef, arrayKnownLive, indexRef);
+  auto rsaDef = globalState->program->getRuntimeSizedArray(rsaMT);
+  return regularLoadElementFromRSAWithoutUpgrade(
+      globalState, functionState, builder, &kindStructs, rsaRefMT, rsaMT, rsaDef->rawArray->mutability, rsaDef->rawArray->elementType, arrayRef, arrayKnownLive, indexRef);
 }
 
-Ref NaiveRC::storeElementInUSA(
+Ref NaiveRC::storeElementInRSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaRefMT,
-    UnknownSizeArrayT* usaMT,
+    Reference* rsaRefMT,
+    RuntimeSizedArrayT* rsaMT,
     Ref arrayRef,
     bool arrayKnownLive,
     Ref indexRef,
     Ref elementRef) {
-  auto usaDef = globalState->program->getUnknownSizeArray(usaMT->name);
+  auto rsaDef = globalState->program->getRuntimeSizedArray(rsaMT);
   auto arrayWrapperPtrLE =
-      referendStructs.makeWrapperPtr(
-          FL(), functionState, builder, usaRefMT,
-          globalState->getRegion(usaRefMT)->checkValidReference(FL(), functionState, builder, usaRefMT, arrayRef));
-  auto sizeRef = ::getUnknownSizeArrayLength(globalState, functionState, builder, arrayWrapperPtrLE);
-  auto arrayElementsPtrLE = getUnknownSizeArrayContentsPtr(builder, arrayWrapperPtrLE);
+      kindStructs.makeWrapperPtr(
+          FL(), functionState, builder, rsaRefMT,
+          globalState->getRegion(rsaRefMT)->checkValidReference(FL(), functionState, builder, rsaRefMT, arrayRef));
+  auto sizeRef = ::getRuntimeSizedArrayLength(globalState, functionState, builder, arrayWrapperPtrLE);
+  auto arrayElementsPtrLE = getRuntimeSizedArrayContentsPtr(builder, arrayWrapperPtrLE);
   buildFlare(FL(), globalState, functionState, builder);
   return ::swapElement(
-      globalState, functionState, builder, usaRefMT->location, usaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
+      globalState, functionState, builder, rsaRefMT->location, rsaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
 }
 
 Ref NaiveRC::upcast(
@@ -662,20 +659,20 @@ Ref NaiveRC::upcast(
     LLVMBuilderRef builder,
 
     Reference* sourceStructMT,
-    StructReferend* sourceStructReferendM,
+    StructKind* sourceStructKindM,
     Ref sourceRefLE,
 
     Reference* targetInterfaceTypeM,
-    InterfaceReferend* targetInterfaceReferendM) {
+    InterfaceKind* targetInterfaceKindM) {
 
   switch (sourceStructMT->ownership) {
     case Ownership::SHARE:
     case Ownership::OWN:
     case Ownership::BORROW: {
-      return upcastStrong(globalState, functionState, builder, &referendStructs, sourceStructMT, sourceStructReferendM, sourceRefLE, targetInterfaceTypeM, targetInterfaceReferendM);
+      return upcastStrong(globalState, functionState, builder, &kindStructs, sourceStructMT, sourceStructKindM, sourceRefLE, targetInterfaceTypeM, targetInterfaceKindM);
     }
     case Ownership::WEAK: {
-      return ::upcastWeak(globalState, functionState, builder, &weakRefStructs, sourceStructMT, sourceStructReferendM, sourceRefLE, targetInterfaceTypeM, targetInterfaceReferendM);
+      return ::upcastWeak(globalState, functionState, builder, &weakRefStructs, sourceStructMT, sourceStructKindM, sourceRefLE, targetInterfaceTypeM, targetInterfaceKindM);
     }
     default:
       assert(false);
@@ -689,30 +686,30 @@ void NaiveRC::deallocate(
     LLVMBuilderRef builder,
     Reference* refMT,
     Ref ref) {
-  innerDeallocate(from, globalState, functionState, &referendStructs, builder, refMT, ref);
+  innerDeallocate(from, globalState, functionState, &kindStructs, builder, refMT, ref);
 }
 
-Ref NaiveRC::constructUnknownSizeArray(
+Ref NaiveRC::constructRuntimeSizedArray(
     Ref regionInstanceRef,
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaMT,
-    UnknownSizeArrayT* unknownSizeArrayT,
+    Reference* rsaMT,
+    RuntimeSizedArrayT* runtimeSizedArrayT,
     Ref sizeRef,
     const std::string& typeName) {
-  auto usaWrapperPtrLT =
-      referendStructs.getUnknownSizeArrayWrapperStruct(unknownSizeArrayT);
-  auto usaDef = globalState->program->getUnknownSizeArray(unknownSizeArrayT->name);
-  auto elementType = globalState->program->getUnknownSizeArray(unknownSizeArrayT->name)->rawArray->elementType;
-  auto usaElementLT = globalState->getRegion(elementType)->translateType(elementType);
+  auto rsaWrapperPtrLT =
+      kindStructs.getRuntimeSizedArrayWrapperStruct(runtimeSizedArrayT);
+  auto rsaDef = globalState->program->getRuntimeSizedArray(runtimeSizedArrayT);
+  auto elementType = globalState->program->getRuntimeSizedArray(runtimeSizedArrayT)->rawArray->elementType;
+  auto rsaElementLT = globalState->getRegion(elementType)->translateType(elementType);
   auto resultRef =
-      ::constructUnknownSizeArray(
-          globalState, functionState, builder, &referendStructs, usaMT, usaDef->rawArray->elementType, unknownSizeArrayT,
-          usaWrapperPtrLT, usaElementLT, sizeRef, typeName,
-          [this, functionState, unknownSizeArrayT, typeName](
+      ::constructRuntimeSizedArray(
+          globalState, functionState, builder, &kindStructs, rsaMT, rsaDef->rawArray->elementType, runtimeSizedArrayT,
+          rsaWrapperPtrLT, rsaElementLT, sizeRef, typeName,
+          [this, functionState, runtimeSizedArrayT, typeName](
               LLVMBuilderRef innerBuilder, ControlBlockPtrLE controlBlockPtrLE) {
             fillControlBlock(
-                FL(), functionState, innerBuilder, unknownSizeArrayT, controlBlockPtrLE, typeName);
+                FL(), functionState, innerBuilder, runtimeSizedArrayT, controlBlockPtrLE, typeName);
           });
   // We dont increment here, see SRCAO
   return resultRef;
@@ -736,7 +733,7 @@ Ref NaiveRC::loadMember(
       } else {
         auto unupgradedMemberLE =
             regularLoadMember(
-                globalState, functionState, builder, &referendStructs, structRefMT, structRef,
+                globalState, functionState, builder, &kindStructs, structRefMT, structRef,
                 memberIndex, expectedMemberType, targetType, memberName);
         return upgradeLoadResultToRefWithTargetOwnership(
             functionState, builder, expectedMemberType, targetType, unupgradedMemberLE);
@@ -758,7 +755,7 @@ Ref NaiveRC::loadMember(
             case Ownership::SHARE: {
               auto unupgradedMemberLE =
                   regularLoadMember(
-                      globalState, functionState, builder, &referendStructs, structRefMT, structRef,
+                      globalState, functionState, builder, &kindStructs, structRefMT, structRef,
                       memberIndex, expectedMemberType, targetType, memberName);
               return upgradeLoadResultToRefWithTargetOwnership(
                   functionState, builder, expectedMemberType, targetType, unupgradedMemberLE);
@@ -767,7 +764,7 @@ Ref NaiveRC::loadMember(
             case Ownership::WEAK: {
               auto memberLE =
                   resilientLoadWeakMember(
-                      globalState, functionState, builder, &referendStructs, structRefMT,
+                      globalState, functionState, builder, &kindStructs, structRefMT,
                       structRef,
                       structKnownLive, memberIndex, expectedMemberType, memberName);
               auto resultRef =
@@ -792,121 +789,78 @@ void NaiveRC::checkInlineStructType(
     Reference* refMT,
     Ref ref) {
   auto argLE = checkValidReference(FL(), functionState, builder, refMT, ref);
-  auto structReferend = dynamic_cast<StructReferend*>(refMT->referend);
-  assert(structReferend);
-  assert(LLVMTypeOf(argLE) == referendStructs.getInnerStruct(structReferend));
+  auto structKind = dynamic_cast<StructKind*>(refMT->kind);
+  assert(structKind);
+  assert(LLVMTypeOf(argLE) == kindStructs.getInnerStruct(structKind));
 }
 
 
-std::string NaiveRC::getMemberArbitraryRefNameCSeeMMEDT(Reference* refMT) {
-  if (refMT->ownership == Ownership::SHARE) {
-    assert(false);
-  } else if (auto structRefMT = dynamic_cast<StructReferend*>(refMT->referend)) {
-    auto structMT = globalState->program->getStruct(structRefMT->fullName);
-    auto baseName = globalState->program->getMemberArbitraryExportNameSeeMMEDT(structRefMT->fullName);
-    if (structMT->mutability == Mutability::MUTABLE) {
-      assert(refMT->location != Location::INLINE);
-      return baseName + "Ref";
-    } else {
-      if (refMT->location == Location::INLINE) {
-        return baseName + "Inl";
-      } else {
-        return baseName + "Ref";
-      }
-    }
-  } else if (auto interfaceMT = dynamic_cast<InterfaceReferend*>(refMT->referend)) {
-    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(interfaceMT->fullName) + "Ref";
-  } else if (auto usaMT = dynamic_cast<UnknownSizeArrayT*>(refMT->referend)) {
-    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(usaMT->name) + "Ref";
-  } else if (auto ksaMT = dynamic_cast<KnownSizeArrayT*>(refMT->referend)) {
-    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(ksaMT->name) + "Ref";
-  } else {
-    assert(false);
-  }
-}
+//std::string NaiveRC::getMemberArbitraryRefNameCSeeMMEDT(Reference* refMT) {
+//  if (refMT->ownership == Ownership::SHARE) {
+//    assert(false);
+//  } else if (auto structRefMT = dynamic_cast<StructKind*>(refMT->kind)) {
+//    auto structMT = globalState->program->getStruct(structRefMT);
+//    auto baseName = globalState->program->getMemberArbitraryExportNameSeeMMEDT(structRefMT->fullName);
+//    if (structMT->mutability == Mutability::MUTABLE) {
+//      assert(refMT->location != Location::INLINE);
+//      return baseName + "Ref";
+//    } else {
+//      if (refMT->location == Location::INLINE) {
+//        return baseName + "Inl";
+//      } else {
+//        return baseName + "Ref";
+//      }
+//    }
+//  } else if (auto interfaceMT = dynamic_cast<InterfaceKind*>(refMT->kind)) {
+//    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(interfaceMT->fullName) + "Ref";
+//  } else if (auto rsaMT = dynamic_cast<RuntimeSizedArrayT*>(refMT->kind)) {
+//    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(rsaMT->name) + "Ref";
+//  } else if (auto ssaMT = dynamic_cast<StaticSizedArrayT*>(refMT->kind)) {
+//    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(ssaMT->name) + "Ref";
+//  } else {
+//    assert(false);
+//  }
+//}
 
-void NaiveRC::generateUnknownSizeArrayDefsC(
-    std::unordered_map<std::string, std::string>* cByExportedName,
-    UnknownSizeArrayDefinitionT* usaDefM) {
-  if (usaDefM->rawArray->mutability == Mutability::IMMUTABLE) {
-    assert(false);
-  } else {
-    for (auto baseName : globalState->program->getExportedNames(usaDefM->name)) {
-      auto refTypeName = baseName + "Ref";
-      std::stringstream s;
-      s << "typedef struct " << refTypeName << " { void* unused; } " << refTypeName << ";" << std::endl;
-      cByExportedName->insert(std::make_pair(baseName, s.str()));
-    }
-  }
-}
+std::string NaiveRC::generateRuntimeSizedArrayDefsC(
+    Package* currentPackage,
 
-void NaiveRC::generateKnownSizeArrayDefsC(
-    std::unordered_map<std::string, std::string>* cByExportedName,
-    KnownSizeArrayDefinitionT* ksaDefM) {
-  if (ksaDefM->rawArray->mutability == Mutability::IMMUTABLE) {
+    RuntimeSizedArrayDefinitionT* rsaDefM) {
+  if (rsaDefM->rawArray->mutability == Mutability::IMMUTABLE) {
     assert(false);
   } else {
-    for (auto baseName : globalState->program->getExportedNames(ksaDefM->name)) {
-      auto refTypeName = baseName + "Ref";
-      std::stringstream s;
-      s << "typedef struct " << refTypeName << " { void* unused; } " << refTypeName << ";" << std::endl;
-      cByExportedName->insert(std::make_pair(baseName, s.str()));
-    }
+    auto name = currentPackage->getKindExportName(rsaDefM->kind, true);
+    return std::string() + "typedef struct " + name + "Ref { void* unused; } " + name + "Ref;\n";
   }
 }
 
-void NaiveRC::generateStructDefsC(
-    std::unordered_map<std::string, std::string>* cByExportedName, StructDefinition* structDefM) {
-  switch (globalState->opt->regionOverride) {
-    case RegionOverride::NAIVE_RC:
-      if (structDefM->mutability == Mutability::IMMUTABLE) {
-        assert(false);
-      } else {
-        for (auto baseName : globalState->program->getExportedNames(structDefM->referend->fullName)) {
-          auto refTypeName = baseName + "Ref";
-          std::stringstream s;
-          s << "typedef struct " << refTypeName << " { void* unused; } " << refTypeName << ";" << std::endl;
-          cByExportedName->insert(std::make_pair(baseName, s.str()));
-        }
-      }
-      break;
-    case RegionOverride::RESILIENT_V3: case RegionOverride::RESILIENT_V4:
-      if (structDefM->mutability == Mutability::IMMUTABLE) {
-        assert(false);
-      } else {
-        for (auto baseName : globalState->program->getExportedNames(structDefM->referend->fullName)) {
-          auto refTypeName = baseName + "Ref";
-          std::stringstream s;
-          s << "typedef struct " << refTypeName << " { uint64_t unused0; void* unused1; } " << refTypeName << ";" << std::endl;
-          cByExportedName->insert(std::make_pair(baseName, s.str()));
-        }
-      }
-      break;
-    default:
-      assert(false);
+std::string NaiveRC::generateStaticSizedArrayDefsC(
+    Package* currentPackage,
+    StaticSizedArrayDefinitionT* ssaDefM) {
+  if (ssaDefM->rawArray->mutability == Mutability::IMMUTABLE) {
+    assert(false);
+  } else {
+    auto name = currentPackage->getKindExportName(ssaDefM->kind, true);
+    return std::string() + "typedef struct " + name + "Ref { void* unused; } " + name + "Ref;\n";
   }
 }
 
-void NaiveRC::generateInterfaceDefsC(
-    std::unordered_map<std::string, std::string>* cByExportedName, InterfaceDefinition* interfaceDefM) {
-  switch (globalState->opt->regionOverride) {
-    case RegionOverride::NAIVE_RC:
-//      return "void* unused; void* unused;";
-      assert(false); // impl
-    case RegionOverride::RESILIENT_V3: case RegionOverride::RESILIENT_V4:
-      if (interfaceDefM->mutability == Mutability::IMMUTABLE) {
-        assert(false);
-      } else {
-        for (auto name : globalState->program->getExportedNames(interfaceDefM->referend->fullName)) {
-          std::stringstream s;
-          s << "typedef struct " << name << "Ref { uint64_t unused0; void* unused1; void* unused2; } " << name << "Ref;";
-          cByExportedName->insert(std::make_pair(name, s.str()));
-        }
-      }
-      break;
-    default:
-      assert(false);
+std::string NaiveRC::generateStructDefsC(
+    Package* currentPackage,
+     StructDefinition* structDefM) {
+  if (structDefM->mutability == Mutability::IMMUTABLE) {
+    assert(false);
+  } else {
+    auto name = currentPackage->getKindExportName(structDefM->kind, true);
+    return std::string() + "typedef struct " + name + "Ref { void* unused; } " + name + "Ref;\n";
   }
+}
+
+std::string NaiveRC::generateInterfaceDefsC(
+    Package* currentPackage,
+     InterfaceDefinition* interfaceDefM) {
+  assert(false); // impl
+  return "";
 }
 
 Reference* NaiveRC::getExternalType(Reference* refMT) {
@@ -955,7 +909,7 @@ LLVMTypeRef NaiveRC::getInterfaceMethodVirtualParamAnyType(Reference* reference)
         case Ownership::SHARE:
           return LLVMPointerType(LLVMInt8TypeInContext(globalState->context), 0);
         case Ownership::WEAK:
-          return weakRefStructs.getWeakVoidRefStruct(reference->referend);
+          return weakRefStructs.getWeakVoidRefStruct(reference->kind);
         default:
           assert(false);
       }
@@ -968,7 +922,7 @@ LLVMTypeRef NaiveRC::getInterfaceMethodVirtualParamAnyType(Reference* reference)
           return LLVMPointerType(LLVMInt8TypeInContext(globalState->context), 0);
         case Ownership::BORROW:
         case Ownership::WEAK:
-          return weakRefStructs.getWeakVoidRefStruct(reference->referend);
+          return weakRefStructs.getWeakVoidRefStruct(reference->kind);
       }
       break;
     }
@@ -1009,56 +963,56 @@ Ref NaiveRC::encryptAndSendFamiliarReference(
   }
 }
 
-void NaiveRC::initializeElementInUSA(
+void NaiveRC::initializeElementInRSA(
     FunctionState *functionState,
     LLVMBuilderRef builder,
-    Reference *usaRefMT,
-    UnknownSizeArrayT *usaMT,
-    Ref usaRef,
+    Reference *rsaRefMT,
+    RuntimeSizedArrayT *rsaMT,
+    Ref rsaRef,
     bool arrayRefKnownLive,
     Ref indexRef,
     Ref elementRef) {
-  ::initializeElementInUSA(globalState, functionState, builder, &referendStructs, usaMT, usaRefMT, usaRef, indexRef, elementRef);
+  ::initializeElementInRSA(globalState, functionState, builder, &kindStructs, rsaMT, rsaRefMT, rsaRef, indexRef, elementRef);
 }
 
-Ref NaiveRC::deinitializeElementFromUSA(
+Ref NaiveRC::deinitializeElementFromRSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaRefMT,
-    UnknownSizeArrayT* usaMT,
+    Reference* rsaRefMT,
+    RuntimeSizedArrayT* rsaMT,
     Ref arrayRef,
     bool arrayRefKnownLive,
     Ref indexRef) {
-  auto usaDef = globalState->program->getUnknownSizeArray(usaMT->name);
-  return regularLoadElementFromUSAWithoutUpgrade(
-      globalState, functionState, builder, &referendStructs, usaRefMT, usaMT, usaDef->rawArray->mutability, usaDef->rawArray->elementType, arrayRef, true, indexRef).move();
+  auto rsaDef = globalState->program->getRuntimeSizedArray(rsaMT);
+  return regularLoadElementFromRSAWithoutUpgrade(
+      globalState, functionState, builder, &kindStructs, rsaRefMT, rsaMT, rsaDef->rawArray->mutability, rsaDef->rawArray->elementType, arrayRef, true, indexRef).move();
 }
 
-void NaiveRC::initializeElementInKSA(
+void NaiveRC::initializeElementInSSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* ksaRefMT,
-    KnownSizeArrayT* ksaMT,
+    Reference* ssaRefMT,
+    StaticSizedArrayT* ssaMT,
     Ref arrayRef,
     bool arrayRefKnownLive,
     Ref indexRef,
     Ref elementRef) {
-  auto ksaDef = globalState->program->getKnownSizeArray(ksaMT->name);
+  auto ssaDef = globalState->program->getStaticSizedArray(ssaMT);
   auto arrayWrapperPtrLE =
-      referendStructs.makeWrapperPtr(
-          FL(), functionState, builder, ksaRefMT,
-          globalState->getRegion(ksaRefMT)->checkValidReference(FL(), functionState, builder, ksaRefMT, arrayRef));
-  auto sizeRef = globalState->constI64(ksaDef->size);
-  auto arrayElementsPtrLE = getKnownSizeArrayContentsPtr(builder, arrayWrapperPtrLE);
+      kindStructs.makeWrapperPtr(
+          FL(), functionState, builder, ssaRefMT,
+          globalState->getRegion(ssaRefMT)->checkValidReference(FL(), functionState, builder, ssaRefMT, arrayRef));
+  auto sizeRef = globalState->constI32(ssaDef->size);
+  auto arrayElementsPtrLE = getStaticSizedArrayContentsPtr(builder, arrayWrapperPtrLE);
   ::initializeElement(
-      globalState, functionState, builder, ksaRefMT->location, ksaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
+      globalState, functionState, builder, ssaRefMT->location, ssaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
 }
 
-Ref NaiveRC::deinitializeElementFromKSA(
+Ref NaiveRC::deinitializeElementFromSSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* ksaRefMT,
-    KnownSizeArrayT* ksaMT,
+    Reference* ssaRefMT,
+    StaticSizedArrayT* ssaMT,
     Ref arrayRef,
     bool arrayRefKnownLive,
     Ref indexRef) {
@@ -1066,11 +1020,11 @@ Ref NaiveRC::deinitializeElementFromKSA(
   exit(1);
 }
 
-Weakability NaiveRC::getReferendWeakability(Referend* referend) {
-  if (auto structReferend = dynamic_cast<StructReferend*>(referend)) {
-    return globalState->lookupStruct(structReferend->fullName)->weakability;
-  } else if (auto interfaceReferend = dynamic_cast<InterfaceReferend*>(referend)) {
-    return globalState->lookupInterface(interfaceReferend->fullName)->weakability;
+Weakability NaiveRC::getKindWeakability(Kind* kind) {
+  if (auto structKind = dynamic_cast<StructKind*>(kind)) {
+    return globalState->lookupStruct(structKind)->weakability;
+  } else if (auto interfaceKind = dynamic_cast<InterfaceKind*>(kind)) {
+    return globalState->lookupInterface(interfaceKind)->weakability;
   } else {
     return Weakability::NON_WEAKABLE;
   }
@@ -1107,4 +1061,11 @@ Ref NaiveRC::loadLocal(FunctionState* functionState, LLVMBuilderRef builder, Loc
 
 Ref NaiveRC::localStore(FunctionState* functionState, LLVMBuilderRef builder, Local* local, LLVMValueRef localAddr, Ref refToStore, bool knownLive) {
   return normalLocalStore(globalState, functionState, builder, local, localAddr, refToStore);
+}
+
+std::string NaiveRC::getExportName(
+    Package* package,
+    Reference* reference,
+    bool includeProjectName) {
+  return package->getKindExportName(reference->kind, includeProjectName) + (reference->location == Location::YONDER ? "Ref" : "");
 }

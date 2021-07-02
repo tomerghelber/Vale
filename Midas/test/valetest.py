@@ -40,7 +40,6 @@ class ValeTest(unittest.TestCase):
              "--flares",
              "--region-override", region_override,
              "--output-dir", o_files_dir,
-             "--exports-dir", o_files_dir,
              "--add-exports-include-path",
              "-o",
              exe_name] + extra_flags + in_filepaths)
@@ -117,10 +116,10 @@ class ValeTest(unittest.TestCase):
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/externimmstructparamdeep"], "assist", 42)
     def test_assist_externimminterfaceparam(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/externimminterfaceparam"], "assist", 42)
-    def test_assist_externimmusaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/externimmusaparam"], "assist", 10)
-    def test_assist_externimmusaparamdeep(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/externimmusaparamdeep"], "assist", 20)
+    def test_assist_externimmrsaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/externimmrsaparam"], "assist", 10)
+    def test_assist_externimmrsaparamdeep(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/externimmrsaparamdeep"], "assist", 20)
     def test_assist_exportretvoid(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportretvoid"], "assist", 42)
     def test_assist_exportimmstructparam(self) -> None:
@@ -129,16 +128,16 @@ class ValeTest(unittest.TestCase):
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportimmstructparamdeep"], "assist", 42)
     def test_assist_exportimminterfaceparam(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportimminterfaceparam"], "assist", 42)
-    def test_assist_exportimmusaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportimmusaparam"], "assist", 10)
+    def test_assist_exportimmrsaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportimmrsaparam"], "assist", 10)
     def test_assist_smallstr(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/smallstr.vale"], "assist", 42)
     def test_assist_immtupleaccess(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/tuples/immtupleaccess.vale"], "assist", 42)
-    def test_assist_immksafromcallable(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immksafromcallable.vale"], "assist", 42)
-    def test_assist_immksafromvalues(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immksafromvalues.vale"], "assist", 42)
+    def test_assist_immssafromcallable(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immssafromcallable.vale"], "assist", 42)
+    def test_assist_immssafromvalues(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immssafromvalues.vale"], "assist", 42)
 
     # kldc = known live double check
     def test_resilientv3_kldc(self) -> None:
@@ -150,6 +149,8 @@ class ValeTest(unittest.TestCase):
 
     def test_assist_addret(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/addret.vale"], "assist", 7)
+    def test_assist_add64ret(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/add64ret.vale"], "assist", 42)
     def test_assist_floatarithmetic(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/floatarithmetic.vale"], "assist", 42)
     def test_assist_floateq(self) -> None:
@@ -292,27 +293,27 @@ class ValeTest(unittest.TestCase):
     def test_naiverc_constraintRef(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/constraintRef.vale"], "naive-rc", 8)
 
-    def test_assist_mutksafromcallable(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromcallable.vale"], "assist", 42)
-    def test_unsafefast_mutksafromcallable(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromcallable.vale"], "unsafe-fast", 42)
-    # def test_resilientv4_mutksafromcallable(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromcallable.vale"], "resilient-v4", 42)
-    def test_resilientv3_mutksafromcallable(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromcallable.vale"], "resilient-v3", 42)
-    def test_naiverc_mutksafromcallable(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromcallable.vale"], "naive-rc", 42)
+    def test_assist_mutssafromcallable(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromcallable.vale"], "assist", 42)
+    def test_unsafefast_mutssafromcallable(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromcallable.vale"], "unsafe-fast", 42)
+    # def test_resilientv4_mutssafromcallable(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromcallable.vale"], "resilient-v4", 42)
+    def test_resilientv3_mutssafromcallable(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromcallable.vale"], "resilient-v3", 42)
+    def test_naiverc_mutssafromcallable(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromcallable.vale"], "naive-rc", 42)
 
-    def test_assist_mutksafromvalues(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromvalues.vale"], "assist", 42)
-    def test_unsafefast_mutksafromvalues(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromvalues.vale"], "unsafe-fast", 42)
-    # def test_resilientv4_mutksafromvalues(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromvalues.vale"], "resilient-v4", 42)
-    def test_resilientv3_mutksafromvalues(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromvalues.vale"], "resilient-v3", 42)
-    def test_naiverc_mutksafromvalues(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutksafromvalues.vale"], "naive-rc", 42)
+    def test_assist_mutssafromvalues(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromvalues.vale"], "assist", 42)
+    def test_unsafefast_mutssafromvalues(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromvalues.vale"], "unsafe-fast", 42)
+    # def test_resilientv4_mutssafromvalues(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromvalues.vale"], "resilient-v4", 42)
+    def test_resilientv3_mutssafromvalues(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromvalues.vale"], "resilient-v3", 42)
+    def test_naiverc_mutssafromvalues(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutssafromvalues.vale"], "naive-rc", 42)
 
     def test_assist_imminterface(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/virtuals/imminterface.vale"], "assist", 42)
@@ -358,60 +359,60 @@ class ValeTest(unittest.TestCase):
     def test_naiverc_mutstructstoreinner(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/structs/mutstructstoreinner.vale"], "naive-rc", 42)
 
-    def test_assist_immusa(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immusa.vale"], "assist", 3)
-    def test_unsafefast_immusa(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immusa.vale"], "unsafe-fast", 3)
-    # def test_resilientv4_immusa(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immusa.vale"], "resilient-v4", 3)
-    def test_resilientv3_immusa(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immusa.vale"], "resilient-v3", 3)
-    def test_naiverc_immusa(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immusa.vale"], "naive-rc", 3)
+    def test_assist_immrsa(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immrsa.vale"], "assist", 3)
+    def test_unsafefast_immrsa(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immrsa.vale"], "unsafe-fast", 3)
+    # def test_resilientv4_immrsa(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immrsa.vale"], "resilient-v4", 3)
+    def test_resilientv3_immrsa(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immrsa.vale"], "resilient-v3", 3)
+    def test_naiverc_immrsa(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/immrsa.vale"], "naive-rc", 3)
 
-    def test_assist_mutusa(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusa.vale"], "assist", 3)
-    def test_unsafefast_mutusa(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusa.vale"], "unsafe-fast", 3)
-    # def test_resilientv4_mutusa(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusa.vale"], "resilient-v4", 3)
-    def test_resilientv3_mutusa(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusa.vale"], "resilient-v3", 3)
-    def test_naiverc_mutusa(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusa.vale"], "naive-rc", 3)
+    def test_assist_mutrsa(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsa.vale"], "assist", 3)
+    def test_unsafefast_mutrsa(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsa.vale"], "unsafe-fast", 3)
+    # def test_resilientv4_mutrsa(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsa.vale"], "resilient-v4", 3)
+    def test_resilientv3_mutrsa(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsa.vale"], "resilient-v3", 3)
+    def test_naiverc_mutrsa(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsa.vale"], "naive-rc", 3)
 
-    def test_assist_exportmutusaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutusaparam"], "assist", 10)
-    def test_unsafefast_exportmutusaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutusaparam"], "unsafe-fast", 10)
-    # def test_resilientv4_exportmutusaparam(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutusaparam"], "resilient-v4", 10)
-    def test_resilientv3_exportmutusaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutusaparam"], "resilient-v3", 10)
-    def test_naiverc_exportmutusaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutusaparam"], "naive-rc", 10)
+    def test_assist_exportmutrsaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutrsaparam"], "assist", 10)
+    def test_unsafefast_exportmutrsaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutrsaparam"], "unsafe-fast", 10)
+    # def test_resilientv4_exportmutrsaparam(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutrsaparam"], "resilient-v4", 10)
+    def test_resilientv3_exportmutrsaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutrsaparam"], "resilient-v3", 10)
+    def test_naiverc_exportmutrsaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutrsaparam"], "naive-rc", 10)
 
-    def test_assist_exportmutksaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutksaparam"], "assist", 10)
-    def test_unsafefast_exportmutksaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutksaparam"], "unsafe-fast", 10)
-    # def test_resilientv4_exportmutksaparam(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutksaparam"], "resilient-v4", 10)
-    def test_resilientv3_exportmutksaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutksaparam"], "resilient-v3", 10)
-    def test_naiverc_exportmutksaparam(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutksaparam"], "naive-rc", 10)
+    def test_assist_exportmutssaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutssaparam"], "assist", 10)
+    def test_unsafefast_exportmutssaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutssaparam"], "unsafe-fast", 10)
+    # def test_resilientv4_exportmutssaparam(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutssaparam"], "resilient-v4", 10)
+    def test_resilientv3_exportmutssaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutssaparam"], "resilient-v3", 10)
+    def test_naiverc_exportmutssaparam(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/exportmutssaparam"], "naive-rc", 10)
 
-    def test_assist_mutusalen(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusalen.vale"], "assist", 5)
-    def test_unsafefast_mutusalen(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusalen.vale"], "unsafe-fast", 5)
-    # def test_resilientv4_mutusalen(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusalen.vale"], "resilient-v4", 5)
-    def test_resilientv3_mutusalen(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusalen.vale"], "resilient-v3", 5)
-    def test_naiverc_mutusalen(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutusalen.vale"], "naive-rc", 5)
+    def test_assist_mutrsalen(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsalen.vale"], "assist", 5)
+    def test_unsafefast_mutrsalen(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsalen.vale"], "unsafe-fast", 5)
+    # def test_resilientv4_mutrsalen(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsalen.vale"], "resilient-v4", 5)
+    def test_resilientv3_mutrsalen(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsalen.vale"], "resilient-v3", 5)
+    def test_naiverc_mutrsalen(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/mutrsalen.vale"], "naive-rc", 5)
 
     def test_assist_stradd(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/stradd.vale"], "assist", 42)
@@ -490,16 +491,16 @@ class ValeTest(unittest.TestCase):
     def test_naiverc_unstackifyret(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/unstackifyret.vale"], "naive-rc", 42)
 
-    def test_assist_swapmutusadestroy(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutusadestroy.vale"], "assist", 42)
-    def test_unsafefast_swapmutusadestroy(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutusadestroy.vale"], "unsafe-fast", 42)
-    # def test_resilientv4_swapmutusadestroy(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutusadestroy.vale"], "resilient-v4", 42)
-    def test_resilientv3_swapmutusadestroy(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutusadestroy.vale"], "resilient-v3", 42)
-    def test_naiverc_swapmutusadestroy(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutusadestroy.vale"], "naive-rc", 42)
+    def test_assist_swapmutrsadestroy(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutrsadestroy.vale"], "assist", 42)
+    def test_unsafefast_swapmutrsadestroy(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutrsadestroy.vale"], "unsafe-fast", 42)
+    # def test_resilientv4_swapmutrsadestroy(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutrsadestroy.vale"], "resilient-v4", 42)
+    def test_resilientv3_swapmutrsadestroy(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutrsadestroy.vale"], "resilient-v3", 42)
+    def test_naiverc_swapmutrsadestroy(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/arrays/swapmutrsadestroy.vale"], "naive-rc", 42)
 
     def test_assist_downcastConstraintSuccessful(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastConstraintSuccessful.vale"], "assist", 42)
@@ -522,6 +523,28 @@ class ValeTest(unittest.TestCase):
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastConstraintFailed.vale"], "resilient-v3", 42)
     def test_naiverc_downcastConstraintFailed(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastConstraintFailed.vale"], "naive-rc", 42)
+
+    def test_assist_downcastOwningSuccessful(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningSuccessful.vale"], "assist", 42)
+    def test_unsafefast_downcastOwningSuccessful(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningSuccessful.vale"], "unsafe-fast", 42)
+    # def test_resilientv4_downcastOwningSuccessful(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningSuccessful.vale"], "resilient-v4", 42)
+    def test_resilientv3_downcastOwningSuccessful(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningSuccessful.vale"], "resilient-v3", 42)
+    def test_naiverc_downcastOwningSuccessful(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningSuccessful.vale"], "naive-rc", 42)
+
+    def test_assist_downcastOwningFailed(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningFailed.vale"], "assist", 42)
+    def test_unsafefast_downcastOwningFailed(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningFailed.vale"], "unsafe-fast", 42)
+    # def test_resilientv4_downcastOwningFailed(self) -> None:
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningFailed.vale"], "resilient-v4", 42)
+    def test_resilientv3_downcastOwningFailed(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningFailed.vale"], "resilient-v3", 42)
+    def test_naiverc_downcastOwningFailed(self) -> None:
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/downcast/downcastOwningFailed.vale"], "naive-rc", 42)
 
     def test_assist_unreachablemoot(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/unreachablemoot.vale"], "assist", 42)
@@ -688,17 +711,6 @@ class ValeTest(unittest.TestCase):
     def test_naiverc_weakSelfMethodCallAfterDrop(self) -> None:
         self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/weaks/callWeakSelfMethodAfterDrop.vale"], "naive-rc", 0)
 
-    def test_assist_extern(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/extern.vale"], "assist", 4)
-    def test_unsafefast_extern(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/extern.vale"], "unsafe-fast", 4)
-    # def test_resilientv4_extern(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/extern.vale"], "resilient-v4", 4)
-    def test_resilientv3_extern(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/extern.vale"], "resilient-v3", 4)
-    def test_naiverc_extern(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/extern.vale"], "naive-rc", 4)
-
     # def test_assist_externtupleret(self) -> None:
     #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/externtupleret"], "assist", 42)
     # def test_unsafefast_externtupleret(self) -> None:
@@ -733,15 +745,15 @@ class ValeTest(unittest.TestCase):
     #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/externs/externretmutstruct"], "naive-rc", 42)
 
     def test_assist_strlen(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "assist", 11)
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "assist", 12)
     def test_unsafefast_strlen(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "unsafe-fast", 11)
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "unsafe-fast", 12)
     # def test_resilientv4_strlen(self) -> None:
-    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "resilient-v4", 11)
+    #     self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "resilient-v4", 12)
     def test_resilientv3_strlen(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "resilient-v3", 11)
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "resilient-v3", 12)
     def test_naiverc_strlen(self) -> None:
-        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "naive-rc", 11)
+        self.compile_and_execute_and_expect_return_code([PATH_TO_SAMPLES + "programs/strings/strlen.vale"], "naive-rc", 12)
 
     # Cant get an invalid access in assist mode, a constraint ref catches it first
     def test_unsafefast_invalidaccess(self) -> None:

@@ -21,25 +21,25 @@ Unsafe::Unsafe(GlobalState* globalState_) :
         globalState,
         makeFastWeakableControlBlock(globalState),
         WrcWeaks::makeWeakRefHeaderStruct(globalState)),
-    referendStructs(
+    kindStructs(
         globalState,
-        [this](Referend* referend) -> IReferendStructsSource* {
-          if (globalState->getReferendWeakability(referend) == Weakability::NON_WEAKABLE) {
+        [this](Kind* kind) -> IKindStructsSource* {
+          if (globalState->getKindWeakability(kind) == Weakability::NON_WEAKABLE) {
             return &mutNonWeakableStructs;
           } else {
             return &mutWeakableStructs;
           }
         }),
     weakRefStructs(
-        [this](Referend* referend) -> IWeakRefStructsSource* {
-            if (globalState->getReferendWeakability(referend) == Weakability::NON_WEAKABLE) {
+        [this](Kind* kind) -> IWeakRefStructsSource* {
+            if (globalState->getKindWeakability(kind) == Weakability::NON_WEAKABLE) {
               assert(false);
             } else {
               return &mutWeakableStructs;
             }
         }),
     fatWeaks(globalState_, &weakRefStructs),
-    wrcWeaks(globalState_, &referendStructs, &weakRefStructs) {
+    wrcWeaks(globalState_, &kindStructs, &weakRefStructs) {
   regionLT = LLVMStructCreateNamed(globalState->context, "__Unsafe_Region");
   LLVMStructSetBody(regionLT, nullptr, 0, false);
 }
@@ -56,24 +56,24 @@ RegionId* Unsafe::getRegionId() {
   return globalState->metalCache->unsafeRegionId;
 }
 
-Ref Unsafe::constructKnownSizeArray(
+Ref Unsafe::constructStaticSizedArray(
     Ref regionInstanceRef,
     FunctionState *functionState,
     LLVMBuilderRef builder,
     Reference *referenceM,
-    KnownSizeArrayT *referendM) {
-  auto ksaDef = globalState->program->getKnownSizeArray(referendM->name);
+    StaticSizedArrayT *kindM) {
+  auto ssaDef = globalState->program->getStaticSizedArray(kindM);
   auto resultRef =
-      ::constructKnownSizeArray(
-          globalState, functionState, builder, referenceM, referendM, &referendStructs,
-          [this, functionState, referenceM, referendM](LLVMBuilderRef innerBuilder, ControlBlockPtrLE controlBlockPtrLE) {
+      ::constructStaticSizedArray(
+          globalState, functionState, builder, referenceM, kindM, &kindStructs,
+          [this, functionState, referenceM, kindM](LLVMBuilderRef innerBuilder, ControlBlockPtrLE controlBlockPtrLE) {
             fillControlBlock(
                 FL(),
                 functionState,
                 innerBuilder,
-                referenceM->referend,
+                referenceM->kind,
                 controlBlockPtrLE,
-                referendM->name->name);
+                kindM->name->name);
           });
   return resultRef;
 }
@@ -95,14 +95,14 @@ Ref Unsafe::allocate(
     LLVMBuilderRef builder,
     Reference* desiredReference,
     const std::vector<Ref>& memberRefs) {
-  auto structReferend = dynamic_cast<StructReferend*>(desiredReference->referend);
-  auto structM = globalState->program->getStruct(structReferend->fullName);
+  auto structKind = dynamic_cast<StructKind*>(desiredReference->kind);
+  auto structM = globalState->program->getStruct(structKind);
   auto resultRef =
       innerAllocate(
-          FL(), globalState, functionState, builder, desiredReference, &referendStructs, memberRefs, Weakability::WEAKABLE,
+          FL(), globalState, functionState, builder, desiredReference, &kindStructs, memberRefs, Weakability::WEAKABLE,
           [this, functionState, desiredReference, structM](LLVMBuilderRef innerBuilder, ControlBlockPtrLE controlBlockPtrLE) {
             fillControlBlock(
-                FL(), functionState, innerBuilder, desiredReference->referend,
+                FL(), functionState, innerBuilder, desiredReference->kind,
                 controlBlockPtrLE, structM->name->name);
           });
   return resultRef;
@@ -114,16 +114,16 @@ void Unsafe::alias(
     LLVMBuilderRef builder,
     Reference* sourceRef,
     Ref expr) {
-  auto sourceRnd = sourceRef->referend;
+  auto sourceRnd = sourceRef->kind;
 
   if (dynamic_cast<Int *>(sourceRnd) ||
       dynamic_cast<Bool *>(sourceRnd) ||
       dynamic_cast<Float *>(sourceRnd)) {
     // Do nothing for these, they're always inlined and copied.
-  } else if (dynamic_cast<InterfaceReferend *>(sourceRnd) ||
-      dynamic_cast<StructReferend *>(sourceRnd) ||
-      dynamic_cast<KnownSizeArrayT *>(sourceRnd) ||
-      dynamic_cast<UnknownSizeArrayT *>(sourceRnd) ||
+  } else if (dynamic_cast<InterfaceKind *>(sourceRnd) ||
+      dynamic_cast<StructKind *>(sourceRnd) ||
+      dynamic_cast<StaticSizedArrayT *>(sourceRnd) ||
+      dynamic_cast<RuntimeSizedArrayT *>(sourceRnd) ||
       dynamic_cast<Str *>(sourceRnd)) {
     if (sourceRef->ownership == Ownership::OWN) {
       // We might be loading a member as an own if we're destructuring.
@@ -136,13 +136,13 @@ void Unsafe::alias(
       if (sourceRef->location == Location::INLINE) {
         // Do nothing, we can just let inline structs disappear
       } else {
-        adjustStrongRc(from, globalState, functionState, &referendStructs, builder, expr, sourceRef, 1);
+        adjustStrongRc(from, globalState, functionState, &kindStructs, builder, expr, sourceRef, 1);
       }
     } else
       assert(false);
   } else {
     std::cerr << "Unimplemented type in acquireReference: "
-        << typeid(*sourceRef->referend).name() << std::endl;
+        << typeid(*sourceRef->kind).name() << std::endl;
     assert(false);
   }
 }
@@ -153,7 +153,7 @@ void Unsafe::dealias(
     LLVMBuilderRef builder,
     Reference* sourceMT,
     Ref sourceRef) {
-  auto sourceRnd = sourceMT->referend;
+  auto sourceRnd = sourceMT->kind;
 
   if (sourceMT->ownership == Ownership::SHARE) {
     assert(false);
@@ -169,7 +169,7 @@ void Unsafe::dealias(
 }
 
 Ref Unsafe::weakAlias(FunctionState* functionState, LLVMBuilderRef builder, Reference* sourceRefMT, Reference* targetRefMT, Ref sourceRef) {
-  return regularWeakAlias(globalState, functionState, &referendStructs, &wrcWeaks, builder, sourceRefMT, targetRefMT, sourceRef);
+  return regularWeakAlias(globalState, functionState, &kindStructs, &wrcWeaks, builder, sourceRefMT, targetRefMT, sourceRef);
 }
 
 // Doesn't return a constraint ref, returns a raw ref to the wrapper struct.
@@ -191,7 +191,7 @@ WrapperPtrLE Unsafe::lockWeakRef(
           weakRefStructs.makeWeakFatPtr(
               refM,
               checkValidReference(FL(), functionState, builder, refM, weakRefLE));
-      return referendStructs.makeWrapperPtr(
+      return kindStructs.makeWrapperPtr(
           FL(), functionState, builder, refM,
           wrcWeaks.lockWrciFatPtr(from, functionState, builder, refM, weakFatPtrLE));
     }
@@ -229,20 +229,17 @@ Ref Unsafe::lockWeak(
 Ref Unsafe::asSubtype(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    bool thenResultIsNever,
-    bool elseResultIsNever,
     Reference* resultOptTypeM,
-    Reference* constraintRefM,
     Reference* sourceInterfaceRefMT,
     Ref sourceInterfaceRef,
     bool sourceRefKnownLive,
-    Referend* targetReferend,
+    Kind* targetKind,
     std::function<Ref(LLVMBuilderRef, Ref)> buildThen,
     std::function<Ref(LLVMBuilderRef)> buildElse) {
 
-  return regularInnerAsSubtype(
-      globalState, functionState, builder, thenResultIsNever, elseResultIsNever, resultOptTypeM, constraintRefM,
-      sourceInterfaceRefMT, sourceInterfaceRef, sourceRefKnownLive, targetReferend, buildThen, buildElse);
+  return regularDowncast(
+      globalState, functionState, builder, &kindStructs, resultOptTypeM,
+      sourceInterfaceRefMT, sourceInterfaceRef, sourceRefKnownLive, targetKind, buildThen, buildElse);
 }
 
 LLVMTypeRef Unsafe::translateType(Reference* referenceM) {
@@ -252,10 +249,10 @@ LLVMTypeRef Unsafe::translateType(Reference* referenceM) {
     case Ownership::OWN:
     case Ownership::BORROW:
       assert(referenceM->location != Location::INLINE);
-      return translateReferenceSimple(globalState, &referendStructs, referenceM->referend);
+      return translateReferenceSimple(globalState, &kindStructs, referenceM->kind);
     case Ownership::WEAK:
       assert(referenceM->location != Location::INLINE);
-      return translateWeakReference(globalState, &weakRefStructs, referenceM->referend);
+      return translateWeakReference(globalState, &weakRefStructs, referenceM->kind);
     default:
       assert(false);
   }
@@ -265,52 +262,52 @@ Ref Unsafe::upcastWeak(
     FunctionState* functionState,
     LLVMBuilderRef builder,
     WeakFatPtrLE sourceRefLE,
-    StructReferend* sourceStructReferendM,
+    StructKind* sourceStructKindM,
     Reference* sourceStructTypeM,
-    InterfaceReferend* targetInterfaceReferendM,
+    InterfaceKind* targetInterfaceKindM,
     Reference* targetInterfaceTypeM) {
   auto resultWeakInterfaceFatPtr =
       wrcWeaks.weakStructPtrToWrciWeakInterfacePtr(
-          globalState, functionState, builder, sourceRefLE, sourceStructReferendM,
-          sourceStructTypeM, targetInterfaceReferendM, targetInterfaceTypeM);
+          globalState, functionState, builder, sourceRefLE, sourceStructKindM,
+          sourceStructTypeM, targetInterfaceKindM, targetInterfaceTypeM);
   return wrap(this, targetInterfaceTypeM, resultWeakInterfaceFatPtr);
 }
 
-void Unsafe::declareKnownSizeArray(
-    KnownSizeArrayDefinitionT* knownSizeArrayMT) {
-  globalState->regionIdByReferend.emplace(knownSizeArrayMT->referend, getRegionId());
+void Unsafe::declareStaticSizedArray(
+    StaticSizedArrayDefinitionT* staticSizedArrayMT) {
+  globalState->regionIdByKind.emplace(staticSizedArrayMT->kind, getRegionId());
 
-  referendStructs.declareKnownSizeArray(knownSizeArrayMT);
+  kindStructs.declareStaticSizedArray(staticSizedArrayMT);
 }
 
-void Unsafe::declareUnknownSizeArray(
-    UnknownSizeArrayDefinitionT* unknownSizeArrayMT) {
-  globalState->regionIdByReferend.emplace(unknownSizeArrayMT->referend, getRegionId());
+void Unsafe::declareRuntimeSizedArray(
+    RuntimeSizedArrayDefinitionT* runtimeSizedArrayMT) {
+  globalState->regionIdByKind.emplace(runtimeSizedArrayMT->kind, getRegionId());
 
-  referendStructs.declareUnknownSizeArray(unknownSizeArrayMT);
+  kindStructs.declareRuntimeSizedArray(runtimeSizedArrayMT);
 }
 
-void Unsafe::defineUnknownSizeArray(
-    UnknownSizeArrayDefinitionT* unknownSizeArrayMT) {
+void Unsafe::defineRuntimeSizedArray(
+    RuntimeSizedArrayDefinitionT* runtimeSizedArrayMT) {
   auto elementLT =
-      globalState->getRegion(unknownSizeArrayMT->rawArray->elementType)
-          ->translateType(unknownSizeArrayMT->rawArray->elementType);
-  referendStructs.defineUnknownSizeArray(unknownSizeArrayMT, elementLT);
+      globalState->getRegion(runtimeSizedArrayMT->rawArray->elementType)
+          ->translateType(runtimeSizedArrayMT->rawArray->elementType);
+  kindStructs.defineRuntimeSizedArray(runtimeSizedArrayMT, elementLT);
 }
 
-void Unsafe::defineKnownSizeArray(
-    KnownSizeArrayDefinitionT* knownSizeArrayMT) {
+void Unsafe::defineStaticSizedArray(
+    StaticSizedArrayDefinitionT* staticSizedArrayMT) {
   auto elementLT =
-      globalState->getRegion(knownSizeArrayMT->rawArray->elementType)
-          ->translateType(knownSizeArrayMT->rawArray->elementType);
-  referendStructs.defineKnownSizeArray(knownSizeArrayMT, elementLT);
+      globalState->getRegion(staticSizedArrayMT->rawArray->elementType)
+          ->translateType(staticSizedArrayMT->rawArray->elementType);
+  kindStructs.defineStaticSizedArray(staticSizedArrayMT, elementLT);
 }
 
 void Unsafe::declareStruct(
     StructDefinition* structM) {
-  globalState->regionIdByReferend.emplace(structM->referend, getRegionId());
+  globalState->regionIdByKind.emplace(structM->kind, getRegionId());
 
-  referendStructs.declareStruct(structM->referend);
+  kindStructs.declareStruct(structM->kind);
 }
 
 void Unsafe::defineStruct(
@@ -321,32 +318,32 @@ void Unsafe::defineStruct(
         globalState->getRegion(structM->members[i]->type)
             ->translateType(structM->members[i]->type));
   }
-  referendStructs.defineStruct(structM->referend, innerStructMemberTypesL);
+  kindStructs.defineStruct(structM->kind, innerStructMemberTypesL);
 }
 
 void Unsafe::declareEdge(
     Edge* edge) {
-  referendStructs.declareEdge(edge);
+  kindStructs.declareEdge(edge);
 }
 
 void Unsafe::defineEdge(
     Edge* edge) {
   auto interfaceFunctionsLT = globalState->getInterfaceFunctionTypes(edge->interfaceName);
   auto edgeFunctionsL = globalState->getEdgeFunctions(edge);
-  referendStructs.defineEdge(edge, interfaceFunctionsLT, edgeFunctionsL);
+  kindStructs.defineEdge(edge, interfaceFunctionsLT, edgeFunctionsL);
 }
 
 void Unsafe::declareInterface(
     InterfaceDefinition* interfaceM) {
-  globalState->regionIdByReferend.emplace(interfaceM->referend, getRegionId());
+  globalState->regionIdByKind.emplace(interfaceM->kind, getRegionId());
 
-  referendStructs.declareInterface(interfaceM);
+  kindStructs.declareInterface(interfaceM);
 }
 
 void Unsafe::defineInterface(
     InterfaceDefinition* interfaceM) {
-  auto interfaceMethodTypesL = globalState->getInterfaceFunctionTypes(interfaceM->referend);
-  referendStructs.defineInterface(interfaceM, interfaceMethodTypesL);
+  auto interfaceMethodTypesL = globalState->getInterfaceFunctionTypes(interfaceM->kind);
+  kindStructs.defineInterface(interfaceM, interfaceMethodTypesL);
 }
 
 void Unsafe::discardOwningRef(
@@ -369,19 +366,19 @@ void Unsafe::noteWeakableDestroyed(
   if (refM->ownership == Ownership::SHARE) {
     assert(false);
 //    // Only shared stuff is RC'd in fast mode
-//    auto rcIsZeroLE = strongRcIsZero(globalState, &referendStructs, builder, refM, controlBlockPtrLE);
+//    auto rcIsZeroLE = strongRcIsZero(globalState, &kindStructs, builder, refM, controlBlockPtrLE);
 //    buildAssert(globalState, functionState, builder, rcIsZeroLE,
 //        "Tried to free concrete that had nonzero RC!");
   } else {
     // It's a mutable, so mark WRCs dead
 
-    if (auto structReferendM = dynamic_cast<StructReferend *>(refM->referend)) {
-      auto structM = globalState->program->getStruct(structReferendM->fullName);
+    if (auto structKindM = dynamic_cast<StructKind *>(refM->kind)) {
+      auto structM = globalState->program->getStruct(structKindM);
       if (structM->weakability == Weakability::WEAKABLE) {
         wrcWeaks.innerNoteWeakableDestroyed(functionState, builder, refM, controlBlockPtrLE);
       }
-    } else if (auto interfaceReferendM = dynamic_cast<InterfaceReferend *>(refM->referend)) {
-      auto interfaceM = globalState->program->getStruct(interfaceReferendM->fullName);
+    } else if (auto interfaceKindM = dynamic_cast<InterfaceKind *>(refM->kind)) {
+      auto interfaceM = globalState->program->getInterface(interfaceKindM);
       if (interfaceM->weakability == Weakability::WEAKABLE) {
         wrcWeaks.innerNoteWeakableDestroyed(functionState, builder, refM, controlBlockPtrLE);
       }
@@ -409,13 +406,13 @@ void Unsafe::storeMember(
     case Ownership::SHARE:
     case Ownership::BORROW: {
       storeMemberStrong(
-          globalState, functionState, builder, &referendStructs, structRefMT, structRef,
+          globalState, functionState, builder, &kindStructs, structRefMT, structRef,
           structKnownLive, memberIndex, memberName, newMemberLE);
       break;
     }
     case Ownership::WEAK: {
       storeMemberWeak(
-          globalState, functionState, builder, &referendStructs, structRefMT, structRef,
+          globalState, functionState, builder, &kindStructs, structRefMT, structRef,
           structKnownLive, memberIndex, memberName, newMemberLE);
       break;
     }
@@ -436,11 +433,11 @@ std::tuple<LLVMValueRef, LLVMValueRef> Unsafe::explodeInterfaceRef(
     case Ownership::BORROW:
     case Ownership::SHARE: {
       return explodeStrongInterfaceRef(
-          globalState, functionState, builder, &referendStructs, virtualParamMT, virtualArgRef);
+          globalState, functionState, builder, &kindStructs, virtualParamMT, virtualArgRef);
     }
     case Ownership::WEAK: {
       return explodeWeakInterfaceRef(
-          globalState, functionState, builder, &referendStructs, &fatWeaks, &weakRefStructs,
+          globalState, functionState, builder, &kindStructs, &fatWeaks, &weakRefStructs,
           virtualParamMT, virtualArgRef,
           [this, functionState, builder, virtualParamMT](WeakFatPtrLE weakFatPtrLE) {
             return wrcWeaks.weakInterfaceRefToWeakStructRef(
@@ -452,13 +449,13 @@ std::tuple<LLVMValueRef, LLVMValueRef> Unsafe::explodeInterfaceRef(
   }
 }
 
-Ref Unsafe::getUnknownSizeArrayLength(
+Ref Unsafe::getRuntimeSizedArrayLength(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaRefMT,
+    Reference* rsaRefMT,
     Ref arrayRef,
     bool arrayKnownLive) {
-  return getUnknownSizeArrayLengthStrong(globalState, functionState, builder, &referendStructs, usaRefMT, arrayRef);
+  return getRuntimeSizedArrayLengthStrong(globalState, functionState, builder, &kindStructs, rsaRefMT, arrayRef);
 }
 
 LLVMValueRef Unsafe::checkValidReference(
@@ -475,13 +472,13 @@ LLVMValueRef Unsafe::checkValidReference(
   assert(LLVMTypeOf(refLE) == translateType(refM));
 
   if (refM->ownership == Ownership::OWN) {
-    regularCheckValidReference(checkerAFL, globalState, functionState, builder, &referendStructs, refM, refLE);
+    regularCheckValidReference(checkerAFL, globalState, functionState, builder, &kindStructs, refM, refLE);
   } else if (refM->ownership == Ownership::SHARE) {
     assert(false);
   } else {
     if (refM->ownership == Ownership::BORROW) {
       regularCheckValidReference(checkerAFL, globalState, functionState, builder,
-          &referendStructs, refM, refLE);
+          &kindStructs, refM, refLE);
     } else if (refM->ownership == Ownership::WEAK) {
       wrcWeaks.buildCheckWeakRef(checkerAFL, functionState, builder, refM, ref);
     } else
@@ -545,7 +542,7 @@ Ref Unsafe::upgradeLoadResultToRefWithTargetOwnership(
       return sourceRef;
     } else if (targetOwnership == Ownership::WEAK) {
       // Making a weak ref from a constraint ref local.
-      assert(dynamic_cast<StructReferend*>(sourceType->referend) || dynamic_cast<InterfaceReferend*>(sourceType->referend));
+      assert(dynamic_cast<StructKind*>(sourceType->kind) || dynamic_cast<InterfaceKind*>(sourceType->kind));
       return wrcWeaks.assembleWeakRef(functionState, builder, sourceType, targetType, sourceRef);
     } else {
       assert(false);
@@ -584,8 +581,8 @@ LLVMValueRef Unsafe::getCensusObjectId(
     Reference* refM,
     Ref ref) {
   auto controlBlockPtrLE =
-      referendStructs.getControlBlockPtr(checkerAFL, functionState, builder, ref, refM);
-  return referendStructs.getObjIdFromControlBlockPtr(builder, refM->referend, controlBlockPtrLE);
+      kindStructs.getControlBlockPtr(checkerAFL, functionState, builder, ref, refM);
+  return kindStructs.getObjIdFromControlBlockPtr(builder, refM->kind, controlBlockPtrLE);
 }
 
 Ref Unsafe::getIsAliveFromWeakRef(
@@ -602,18 +599,18 @@ void Unsafe::fillControlBlock(
     AreaAndFileAndLine from,
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Referend* referendM,
+    Kind* kindM,
     ControlBlockPtrLE controlBlockPtrLE,
     const std::string& typeName) {
 
-  LLVMValueRef newControlBlockLE = LLVMGetUndef(referendStructs.getControlBlock(referendM)->getStruct());
+  LLVMValueRef newControlBlockLE = LLVMGetUndef(kindStructs.getControlBlock(kindM)->getStruct());
 
   newControlBlockLE =
       fillControlBlockCensusFields(
-          from, globalState, functionState, &referendStructs, builder, referendM, newControlBlockLE, typeName);
+          from, globalState, functionState, &kindStructs, builder, kindM, newControlBlockLE, typeName);
 
-  if (globalState->getReferendWeakability(referendM) == Weakability::WEAKABLE) {
-    newControlBlockLE = wrcWeaks.fillWeakableControlBlock(functionState, builder, &referendStructs, referendM,
+  if (globalState->getKindWeakability(kindM) == Weakability::WEAKABLE) {
+    newControlBlockLE = wrcWeaks.fillWeakableControlBlock(functionState, builder, &kindStructs, kindM,
         newControlBlockLE);
   }
 
@@ -623,51 +620,51 @@ void Unsafe::fillControlBlock(
       controlBlockPtrLE.refLE);
 }
 
-LoadResult Unsafe::loadElementFromKSA(
+LoadResult Unsafe::loadElementFromSSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* ksaRefMT,
-    KnownSizeArrayT* ksaMT,
+    Reference* ssaRefMT,
+    StaticSizedArrayT* ssaMT,
     Ref arrayRef,
     bool arrayKnownLive,
     Ref indexRef) {
-  auto ksaDef = globalState->program->getKnownSizeArray(ksaMT->name);
-  return regularloadElementFromKSA(
-      globalState, functionState, builder, ksaRefMT, ksaMT, ksaDef->rawArray->elementType, ksaDef->size, ksaDef->rawArray->mutability, arrayRef, arrayKnownLive, indexRef, &referendStructs);
+  auto ssaDef = globalState->program->getStaticSizedArray(ssaMT);
+  return regularloadElementFromSSA(
+      globalState, functionState, builder, ssaRefMT, ssaMT, ssaDef->rawArray->elementType, ssaDef->size, ssaDef->rawArray->mutability, arrayRef, arrayKnownLive, indexRef, &kindStructs);
 }
 
-LoadResult Unsafe::loadElementFromUSA(
+LoadResult Unsafe::loadElementFromRSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaRefMT,
-    UnknownSizeArrayT* usaMT,
+    Reference* rsaRefMT,
+    RuntimeSizedArrayT* rsaMT,
     Ref arrayRef,
     bool arrayKnownLive,
     Ref indexRef) {
-  auto usaDef = globalState->program->getUnknownSizeArray(usaMT->name);
-  return regularLoadElementFromUSAWithoutUpgrade(
-      globalState, functionState, builder, &referendStructs, usaRefMT, usaMT, usaDef->rawArray->mutability, usaDef->rawArray->elementType, arrayRef, arrayKnownLive, indexRef);
+  auto rsaDef = globalState->program->getRuntimeSizedArray(rsaMT);
+  return regularLoadElementFromRSAWithoutUpgrade(
+      globalState, functionState, builder, &kindStructs, rsaRefMT, rsaMT, rsaDef->rawArray->mutability, rsaDef->rawArray->elementType, arrayRef, arrayKnownLive, indexRef);
 }
 
-Ref Unsafe::storeElementInUSA(
+Ref Unsafe::storeElementInRSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaRefMT,
-    UnknownSizeArrayT* usaMT,
+    Reference* rsaRefMT,
+    RuntimeSizedArrayT* rsaMT,
     Ref arrayRef,
     bool arrayKnownLive,
     Ref indexRef,
     Ref elementRef) {
-  auto usaDef = globalState->program->getUnknownSizeArray(usaMT->name);
+  auto rsaDef = globalState->program->getRuntimeSizedArray(rsaMT);
   auto arrayWrapperPtrLE =
-      referendStructs.makeWrapperPtr(
-          FL(), functionState, builder, usaRefMT,
-          globalState->getRegion(usaRefMT)->checkValidReference(FL(), functionState, builder, usaRefMT, arrayRef));
-  auto sizeRef = ::getUnknownSizeArrayLength(globalState, functionState, builder, arrayWrapperPtrLE);
-  auto arrayElementsPtrLE = getUnknownSizeArrayContentsPtr(builder, arrayWrapperPtrLE);
+      kindStructs.makeWrapperPtr(
+          FL(), functionState, builder, rsaRefMT,
+          globalState->getRegion(rsaRefMT)->checkValidReference(FL(), functionState, builder, rsaRefMT, arrayRef));
+  auto sizeRef = ::getRuntimeSizedArrayLength(globalState, functionState, builder, arrayWrapperPtrLE);
+  auto arrayElementsPtrLE = getRuntimeSizedArrayContentsPtr(builder, arrayWrapperPtrLE);
   buildFlare(FL(), globalState, functionState, builder);
   return ::swapElement(
-      globalState, functionState, builder, usaRefMT->location, usaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
+      globalState, functionState, builder, rsaRefMT->location, rsaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
 }
 
 Ref Unsafe::upcast(
@@ -675,20 +672,20 @@ Ref Unsafe::upcast(
     LLVMBuilderRef builder,
 
     Reference* sourceStructMT,
-    StructReferend* sourceStructReferendM,
+    StructKind* sourceStructKindM,
     Ref sourceRefLE,
 
     Reference* targetInterfaceTypeM,
-    InterfaceReferend* targetInterfaceReferendM) {
+    InterfaceKind* targetInterfaceKindM) {
 
   switch (sourceStructMT->ownership) {
     case Ownership::SHARE:
     case Ownership::OWN:
     case Ownership::BORROW: {
-      return upcastStrong(globalState, functionState, builder, &referendStructs, sourceStructMT, sourceStructReferendM, sourceRefLE, targetInterfaceTypeM, targetInterfaceReferendM);
+      return upcastStrong(globalState, functionState, builder, &kindStructs, sourceStructMT, sourceStructKindM, sourceRefLE, targetInterfaceTypeM, targetInterfaceKindM);
     }
     case Ownership::WEAK: {
-      return ::upcastWeak(globalState, functionState, builder, &weakRefStructs, sourceStructMT, sourceStructReferendM, sourceRefLE, targetInterfaceTypeM, targetInterfaceReferendM);
+      return ::upcastWeak(globalState, functionState, builder, &weakRefStructs, sourceStructMT, sourceStructKindM, sourceRefLE, targetInterfaceTypeM, targetInterfaceKindM);
     }
     default:
       assert(false);
@@ -702,33 +699,33 @@ void Unsafe::deallocate(
     LLVMBuilderRef builder,
     Reference* refMT,
     Ref ref) {
-  innerDeallocate(from, globalState, functionState, &referendStructs, builder, refMT, ref);
+  innerDeallocate(from, globalState, functionState, &kindStructs, builder, refMT, ref);
 }
 
-Ref Unsafe::constructUnknownSizeArray(
+Ref Unsafe::constructRuntimeSizedArray(
     Ref regionInstanceRef,
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaMT,
-    UnknownSizeArrayT* unknownSizeArrayT,
+    Reference* rsaMT,
+    RuntimeSizedArrayT* runtimeSizedArrayT,
     Ref sizeRef,
     const std::string& typeName) {
-  auto usaWrapperPtrLT =
-      referendStructs.getUnknownSizeArrayWrapperStruct(unknownSizeArrayT);
-  auto usaDef = globalState->program->getUnknownSizeArray(unknownSizeArrayT->name);
-  auto elementType = globalState->program->getUnknownSizeArray(unknownSizeArrayT->name)->rawArray->elementType;
-  auto usaElementLT = globalState->getRegion(elementType)->translateType(elementType);
+  auto rsaWrapperPtrLT =
+      kindStructs.getRuntimeSizedArrayWrapperStruct(runtimeSizedArrayT);
+  auto rsaDef = globalState->program->getRuntimeSizedArray(runtimeSizedArrayT);
+  auto elementType = globalState->program->getRuntimeSizedArray(runtimeSizedArrayT)->rawArray->elementType;
+  auto rsaElementLT = globalState->getRegion(elementType)->translateType(elementType);
   auto resultRef =
-      ::constructUnknownSizeArray(
-           globalState, functionState, builder, &referendStructs, usaMT, usaDef->rawArray->elementType, unknownSizeArrayT,
-           usaWrapperPtrLT, usaElementLT, sizeRef, typeName,
-          [this, functionState, unknownSizeArrayT, usaMT, typeName](
+      ::constructRuntimeSizedArray(
+           globalState, functionState, builder, &kindStructs, rsaMT, rsaDef->rawArray->elementType, runtimeSizedArrayT,
+           rsaWrapperPtrLT, rsaElementLT, sizeRef, typeName,
+          [this, functionState, runtimeSizedArrayT, rsaMT, typeName](
               LLVMBuilderRef innerBuilder, ControlBlockPtrLE controlBlockPtrLE) {
             fillControlBlock(
                 FL(),
                 functionState,
                 innerBuilder,
-                unknownSizeArrayT,
+                runtimeSizedArrayT,
                 controlBlockPtrLE,
                 typeName);
           });
@@ -751,7 +748,7 @@ Ref Unsafe::loadMember(
   } else {
     auto unupgradedMemberLE =
         regularLoadMember(
-            globalState, functionState, builder, &referendStructs, structRefMT, structRef,
+            globalState, functionState, builder, &kindStructs, structRefMT, structRef,
             memberIndex, expectedMemberType, targetType, memberName);
     return upgradeLoadResultToRefWithTargetOwnership(
         functionState, builder, expectedMemberType, targetType, unupgradedMemberLE);
@@ -764,86 +761,77 @@ void Unsafe::checkInlineStructType(
     Reference* refMT,
     Ref ref) {
   auto argLE = checkValidReference(FL(), functionState, builder, refMT, ref);
-  auto structReferend = dynamic_cast<StructReferend*>(refMT->referend);
-  assert(structReferend);
-  assert(LLVMTypeOf(argLE) == referendStructs.getInnerStruct(structReferend));
+  auto structKind = dynamic_cast<StructKind*>(refMT->kind);
+  assert(structKind);
+  assert(LLVMTypeOf(argLE) == kindStructs.getInnerStruct(structKind));
 }
 
 
-std::string Unsafe::getMemberArbitraryRefNameCSeeMMEDT(Reference* refMT) {
-  if (refMT->ownership == Ownership::SHARE) {
-    assert(false);
-  } else if (auto structRefMT = dynamic_cast<StructReferend*>(refMT->referend)) {
-    auto structMT = globalState->program->getStruct(structRefMT->fullName);
-    auto baseName = globalState->program->getMemberArbitraryExportNameSeeMMEDT(structRefMT->fullName);
-    if (structMT->mutability == Mutability::MUTABLE) {
-      assert(refMT->location != Location::INLINE);
-      return baseName + "Ref";
-    } else {
-      if (refMT->location == Location::INLINE) {
-        return baseName + "Inl";
-      } else {
-        return baseName + "Ref";
-      }
-    }
-  } else if (auto interfaceMT = dynamic_cast<InterfaceReferend*>(refMT->referend)) {
-    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(interfaceMT->fullName) + "Ref";
-  } else if (auto usaMT = dynamic_cast<UnknownSizeArrayT*>(refMT->referend)) {
-    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(usaMT->name) + "Ref";
-  } else if (auto ksaMT = dynamic_cast<KnownSizeArrayT*>(refMT->referend)) {
-    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(ksaMT->name) + "Ref";
-  } else {
-    assert(false);
-  }
-}
+//std::string Unsafe::getMemberArbitraryRefNameCSeeMMEDT(Reference* refMT) {
+//  if (refMT->ownership == Ownership::SHARE) {
+//    assert(false);
+//  } else if (auto structRefMT = dynamic_cast<StructKind*>(refMT->kind)) {
+//    auto structMT = globalState->program->getStruct(structRefMT);
+//    auto baseName = globalState->program->getMemberArbitraryExportNameSeeMMEDT(structRefMT->fullName);
+//    if (structMT->mutability == Mutability::MUTABLE) {
+//      assert(refMT->location != Location::INLINE);
+//      return baseName + "Ref";
+//    } else {
+//      if (refMT->location == Location::INLINE) {
+//        return baseName + "Inl";
+//      } else {
+//        return baseName + "Ref";
+//      }
+//    }
+//  } else if (auto interfaceMT = dynamic_cast<InterfaceKind*>(refMT->kind)) {
+//    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(interfaceMT->fullName) + "Ref";
+//  } else if (auto rsaMT = dynamic_cast<RuntimeSizedArrayT*>(refMT->kind)) {
+//    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(rsaMT->name) + "Ref";
+//  } else if (auto ssaMT = dynamic_cast<StaticSizedArrayT*>(refMT->kind)) {
+//    return globalState->program->getMemberArbitraryExportNameSeeMMEDT(ssaMT->name) + "Ref";
+//  } else {
+//    assert(false);
+//  }
+//}
 
-void Unsafe::generateStructDefsC(
-    std::unordered_map<std::string, std::string>* cByExportedName, StructDefinition* structDefM) {
+std::string Unsafe::generateStructDefsC(
+    Package* currentPackage,
+    StructDefinition* structDefM) {
   if (structDefM->mutability == Mutability::IMMUTABLE) {
     assert(false);
   } else {
-    for (auto baseName : globalState->program->getExportedNames(structDefM->referend->fullName)) {
-      auto refTypeName = baseName + "Ref";
-      std::stringstream s;
-      s << "typedef struct " << refTypeName << " { void* unused; } " << refTypeName << ";" << std::endl;
-      cByExportedName->insert(std::make_pair(baseName, s.str()));
-    }
+    auto name = currentPackage->getKindExportName(structDefM->kind, true);
+    return std::string() + "typedef struct " + name + "Ref { void* unused; } " + name + "Ref;\n";
   }
 }
 
-void Unsafe::generateInterfaceDefsC(
-    std::unordered_map<std::string, std::string>* cByExportedName, InterfaceDefinition* interfaceDefM) {
+std::string Unsafe::generateInterfaceDefsC(
+    Package* currentPackage,
+    InterfaceDefinition* interfaceDefM) {
 //      return "void* unused; void* unused;";
   assert(false); // impl
+  return "";
 }
 
-void Unsafe::generateUnknownSizeArrayDefsC(
-    std::unordered_map<std::string, std::string>* cByExportedName,
-    UnknownSizeArrayDefinitionT* usaDefM) {
-  if (usaDefM->rawArray->mutability == Mutability::IMMUTABLE) {
+std::string Unsafe::generateRuntimeSizedArrayDefsC(
+    Package* currentPackage,
+    RuntimeSizedArrayDefinitionT* rsaDefM) {
+  if (rsaDefM->rawArray->mutability == Mutability::IMMUTABLE) {
     assert(false);
   } else {
-    for (auto baseName : globalState->program->getExportedNames(usaDefM->name)) {
-      auto refTypeName = baseName + "Ref";
-      std::stringstream s;
-      s << "typedef struct " << refTypeName << " { void* unused; } " << refTypeName << ";" << std::endl;
-      cByExportedName->insert(std::make_pair(baseName, s.str()));
-    }
+    auto name = currentPackage->getKindExportName(rsaDefM->kind, true);
+    return std::string() + "typedef struct " + name + "Ref { void* unused; } " + name + "Ref;\n";
   }
 }
 
-void Unsafe::generateKnownSizeArrayDefsC(
-    std::unordered_map<std::string, std::string>* cByExportedName,
-    KnownSizeArrayDefinitionT* ksaDefM) {
-  if (ksaDefM->rawArray->mutability == Mutability::IMMUTABLE) {
+std::string Unsafe::generateStaticSizedArrayDefsC(
+    Package* currentPackage,
+    StaticSizedArrayDefinitionT* ssaDefM) {
+  if (ssaDefM->rawArray->mutability == Mutability::IMMUTABLE) {
     assert(false);
   } else {
-    for (auto baseName : globalState->program->getExportedNames(ksaDefM->name)) {
-      auto refTypeName = baseName + "Ref";
-      std::stringstream s;
-      s << "typedef struct " << refTypeName << " { void* unused; } " << refTypeName << ";" << std::endl;
-      cByExportedName->insert(std::make_pair(baseName, s.str()));
-    }
+    auto name = currentPackage->getKindExportName(ssaDefM->kind, true);
+    return std::string() + "typedef struct " + name + "Ref { void* unused; } " + name + "Ref;\n";
   }
 }
 
@@ -852,9 +840,9 @@ Reference* Unsafe::getExternalType(Reference* refMT) {
 //  if (refMT->ownership == Ownership::SHARE) {
 //    assert(false);
 //  } else {
-//    if (auto structReferend = dynamic_cast<StructReferend*>(refMT->referend)) {
-//      return LLVMPointerType(referendStructs.getWrapperStruct(structReferend), 0);
-//    } else if (auto interfaceReferend = dynamic_cast<InterfaceReferend*>(refMT->referend)) {
+//    if (auto structKind = dynamic_cast<StructKind*>(refMT->kind)) {
+//      return LLVMPointerType(kindStructs.getWrapperStruct(structKind), 0);
+//    } else if (auto interfaceKind = dynamic_cast<InterfaceKind*>(refMT->kind)) {
 //      assert(false); // impl
 //    } else {
 //      std::cerr << "Invalid type for extern!" << std::endl;
@@ -880,7 +868,7 @@ LLVMTypeRef Unsafe::getInterfaceMethodVirtualParamAnyType(Reference* reference) 
     case Ownership::SHARE:
       return LLVMPointerType(LLVMInt8TypeInContext(globalState->context), 0);
     case Ownership::WEAK:
-      return mutWeakableStructs.getWeakVoidRefStruct(reference->referend);
+      return mutWeakableStructs.getWeakVoidRefStruct(reference->kind);
     default:
       assert(false);
   }
@@ -905,64 +893,64 @@ Ref Unsafe::encryptAndSendFamiliarReference(
   return sourceRef;
 }
 
-void Unsafe::initializeElementInUSA(
+void Unsafe::initializeElementInRSA(
     FunctionState *functionState,
     LLVMBuilderRef builder,
-    Reference *usaRefMT,
-    UnknownSizeArrayT *usaMT,
-    Ref usaRef,
+    Reference *rsaRefMT,
+    RuntimeSizedArrayT *rsaMT,
+    Ref rsaRef,
     bool arrayRefKnownLive,
     Ref indexRef,
     Ref elementRef) {
-  auto usaDef = globalState->program->getUnknownSizeArray(usaMT->name);
+  auto rsaDef = globalState->program->getRuntimeSizedArray(rsaMT);
   auto arrayWrapperPtrLE =
-      referendStructs.makeWrapperPtr(
-          FL(), functionState, builder, usaRefMT,
-          globalState->getRegion(usaRefMT)->checkValidReference(FL(), functionState, builder, usaRefMT, usaRef));
-  auto sizeRef = ::getUnknownSizeArrayLength(globalState, functionState, builder, arrayWrapperPtrLE);
-  auto arrayElementsPtrLE = getUnknownSizeArrayContentsPtr(builder, arrayWrapperPtrLE);
+      kindStructs.makeWrapperPtr(
+          FL(), functionState, builder, rsaRefMT,
+          globalState->getRegion(rsaRefMT)->checkValidReference(FL(), functionState, builder, rsaRefMT, rsaRef));
+  auto sizeRef = ::getRuntimeSizedArrayLength(globalState, functionState, builder, arrayWrapperPtrLE);
+  auto arrayElementsPtrLE = getRuntimeSizedArrayContentsPtr(builder, arrayWrapperPtrLE);
   ::initializeElement(
-      globalState, functionState, builder, usaRefMT->location, usaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
+      globalState, functionState, builder, rsaRefMT->location, rsaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
 }
 
-Ref Unsafe::deinitializeElementFromUSA(
+Ref Unsafe::deinitializeElementFromRSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* usaRefMT,
-    UnknownSizeArrayT* usaMT,
+    Reference* rsaRefMT,
+    RuntimeSizedArrayT* rsaMT,
     Ref arrayRef,
     bool arrayRefKnownLive,
     Ref indexRef) {
-  auto usaDef = globalState->program->getUnknownSizeArray(usaMT->name);
-  return regularLoadElementFromUSAWithoutUpgrade(
-      globalState, functionState, builder, &referendStructs, usaRefMT, usaMT, usaDef->rawArray->mutability, usaDef->rawArray->elementType, arrayRef, true, indexRef).move();
+  auto rsaDef = globalState->program->getRuntimeSizedArray(rsaMT);
+  return regularLoadElementFromRSAWithoutUpgrade(
+      globalState, functionState, builder, &kindStructs, rsaRefMT, rsaMT, rsaDef->rawArray->mutability, rsaDef->rawArray->elementType, arrayRef, true, indexRef).move();
 }
 
-void Unsafe::initializeElementInKSA(
+void Unsafe::initializeElementInSSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* ksaRefMT,
-    KnownSizeArrayT* ksaMT,
+    Reference* ssaRefMT,
+    StaticSizedArrayT* ssaMT,
     Ref arrayRef,
     bool arrayRefKnownLive,
     Ref indexRef,
     Ref elementRef) {
-  auto ksaDef = globalState->program->getKnownSizeArray(ksaMT->name);
+  auto ssaDef = globalState->program->getStaticSizedArray(ssaMT);
   auto arrayWrapperPtrLE =
-      referendStructs.makeWrapperPtr(
-          FL(), functionState, builder, ksaRefMT,
-          globalState->getRegion(ksaRefMT)->checkValidReference(FL(), functionState, builder, ksaRefMT, arrayRef));
-  auto sizeRef = globalState->constI64(ksaDef->size);
-  auto arrayElementsPtrLE = getKnownSizeArrayContentsPtr(builder, arrayWrapperPtrLE);
+      kindStructs.makeWrapperPtr(
+          FL(), functionState, builder, ssaRefMT,
+          globalState->getRegion(ssaRefMT)->checkValidReference(FL(), functionState, builder, ssaRefMT, arrayRef));
+  auto sizeRef = globalState->constI32(ssaDef->size);
+  auto arrayElementsPtrLE = getStaticSizedArrayContentsPtr(builder, arrayWrapperPtrLE);
   ::initializeElement(
-      globalState, functionState, builder, ksaRefMT->location, ksaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
+      globalState, functionState, builder, ssaRefMT->location, ssaDef->rawArray->elementType, sizeRef, arrayElementsPtrLE, indexRef, elementRef);
 }
 
-Ref Unsafe::deinitializeElementFromKSA(
+Ref Unsafe::deinitializeElementFromSSA(
     FunctionState* functionState,
     LLVMBuilderRef builder,
-    Reference* ksaRefMT,
-    KnownSizeArrayT* ksaMT,
+    Reference* ssaRefMT,
+    StaticSizedArrayT* ssaMT,
     Ref arrayRef,
     bool arrayRefKnownLive,
     Ref indexRef) {
@@ -970,11 +958,11 @@ Ref Unsafe::deinitializeElementFromKSA(
   exit(1);
 }
 
-Weakability Unsafe::getReferendWeakability(Referend* referend) {
-  if (auto structReferend = dynamic_cast<StructReferend*>(referend)) {
-    return globalState->lookupStruct(structReferend->fullName)->weakability;
-  } else if (auto interfaceReferend = dynamic_cast<InterfaceReferend*>(referend)) {
-    return globalState->lookupInterface(interfaceReferend->fullName)->weakability;
+Weakability Unsafe::getKindWeakability(Kind* kind) {
+  if (auto structKind = dynamic_cast<StructKind*>(kind)) {
+    return globalState->lookupStruct(structKind)->weakability;
+  } else if (auto interfaceKind = dynamic_cast<InterfaceKind*>(kind)) {
+    return globalState->lookupInterface(interfaceKind)->weakability;
   } else {
     return Weakability::NON_WEAKABLE;
   }
@@ -1011,4 +999,11 @@ Ref Unsafe::loadLocal(FunctionState* functionState, LLVMBuilderRef builder, Loca
 
 Ref Unsafe::localStore(FunctionState* functionState, LLVMBuilderRef builder, Local* local, LLVMValueRef localAddr, Ref refToStore, bool knownLive) {
   return normalLocalStore(globalState, functionState, builder, local, localAddr, refToStore);
+}
+
+std::string Unsafe::getExportName(
+    Package* package,
+    Reference* reference,
+    bool includeProjectName) {
+  return package->getKindExportName(reference->kind, includeProjectName) + (reference->location == Location::YONDER ? "Ref" : "");
 }
