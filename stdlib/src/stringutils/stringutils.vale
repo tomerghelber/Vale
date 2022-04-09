@@ -1,4 +1,5 @@
 import stdlib.collections.list.*;
+import stdlib.collections.Iterable.*;
 
 func startsWith(a str, b str) bool { startsWith(a.slice(), b.slice()) }
 func startsWith(a str, b StrSlice) bool { startsWith(a.slice(), b) }
@@ -144,6 +145,27 @@ func int(s StrSlice) Opt<int> {
   }
 
   return Some(totalSoFar);
+}
+
+func join<E>(seperator str, iterable &Iterable<E>) str { join(seperator, iterable.iterator()) }
+func join<E>(seperator str, iterator &Iterator<E>) str {
+  builder = StringBuilder();
+  remaining_source = iterable
+
+  running = true;
+  while running {
+    maybe_next_and_new_remaining_source = remaining_source.next();
+    if maybe_next_and_new_remaining_source.isEmpty() {
+      set running = false;
+    } else {
+      [next, new_remaining_source] = maybe_next_and_new_remaining_source.get();
+      builder.print(next.str());
+      builder.print(seperator);
+      set remaining_source = new_remaining_source;
+    }
+  }
+
+  return builder.str();
 }
 
 struct SplitResult {

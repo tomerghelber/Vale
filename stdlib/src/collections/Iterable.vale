@@ -1,0 +1,7 @@
+interface Iterable<E> {
+  func iterator(): Iterator<E>
+}
+
+interface Iterator<E> {
+  func next(): Opt<&E>;
+}

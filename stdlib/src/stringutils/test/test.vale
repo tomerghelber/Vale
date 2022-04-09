@@ -84,6 +84,18 @@ exported func main() {
     splat.get(3) should_equal "".slice();
     splat.get(4) should_equal "".slice();
   });
+  suite.test("join empty iterator", {
+    joined = "sep".join([])
+    joined should_equal ""
+  })
+  suite.test("join on strings", {
+    joined = "sep".join(["1", "2", "3"])
+    joined should_equal "1sep2sep3"
+  })
+  suite.test("join on stringable types", {
+    joined = "sep".join([1, 2, 3, 4])
+    joined should_equal "1sep2sep3sep4"
+  })
   suite.test("parse int None 0", {
     int("").isEmpty() should_equal true
   });
